@@ -7,13 +7,15 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: 'http://localhost:3000', // Для локальной разработки клиента
+    origin: 'https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app/', // Укажите домен Netlify
     methods: ['GET', 'POST']
   }
 });
 
 // Настройка CORS для всех маршрутов
-app.use(cors());
+app.use(cors({
+  origin: 'https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app/', // Укажите домен Netlify
+}));
 
 let players = []; // Массив для хранения всех игроков
 
@@ -46,6 +48,11 @@ io.on('connection', (socket) => {
     players = players.filter(player => player.id !== socket.id); // Удаляем игрока из списка
     io.emit('updatePlayers', players); // Обновляем список игроков на клиенте
     console.log(`-1 player disconnected. Total players: ${players.length}`);
+  });
+
+  // Обработка ошибок
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 });
 
