@@ -5,7 +5,7 @@ import { Joystick } from 'react-joystick-component';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 
-const socket = io('http://localhost:5000'); // Подключаемся к серверу
+const socket = io('http://212.67.15.4:5000'); // Подключаемся к серверу
 
 // Выводим сообщения о подключении и ошибках
 socket.on('connect', () => {

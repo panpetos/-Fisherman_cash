@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: 'https://ваш_домен_клиента.com', // Укажите домен, с которого будут разрешены запросы
+    origin: 'http://localhost:3000', // Для локальной разработки клиента
     methods: ['GET', 'POST']
   }
 });
