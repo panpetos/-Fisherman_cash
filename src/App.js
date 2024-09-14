@@ -5,16 +5,8 @@ import { Joystick } from 'react-joystick-component';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 
-const socket = io('http://212.67.15.4:5000'); // Подключаемся к серверу
-
-// Выводим сообщения о подключении и ошибках
-socket.on('connect', () => {
-  console.log('Connected to server with id:', socket.id);
-});
-
-socket.on('connect_error', (error) => {
-  console.error('Connection error:', error);
-});
+// Подключаемся к серверу
+const socket = io('http://212.67.15.4:5000');
 
 // Компонент для загрузки модели игрока
 const Player = ({ position, rotation, animationName }) => {
@@ -24,11 +16,10 @@ const Player = ({ position, rotation, animationName }) => {
 
   useEffect(() => {
     if (actions) {
-      actions?.T?.stop();
-      actions?.Run?.stop();
-      actions?.St?.stop();
-      actions?.Fs_2?.stop();
+      // Останавливаем все анимации
+      Object.values(actions).forEach(action => action.stop());
 
+      // Запускаем указанную анимацию
       if (animationName && actions[animationName]) {
         actions[animationName].play();
       }
@@ -88,14 +79,33 @@ const App = () => {
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]); // Хранение всех игроков
-
   const [isMoving, setIsMoving] = useState(false);
 
-  // Получаем список всех игроков с сервера
+  // Обработка подключения и ошибок
   useEffect(() => {
-    socket.on('updatePlayers', (updatedPlayers) => {
-      setPlayers(updatedPlayers); // Обновляем список игроков
+    socket.on('connect', () => {
+      console.log('Connected to server with id:', socket.id);
     });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+    });
+
+    socket.on('updatePlayers', (updatedPlayers) => {
+      console.log('Updated players list:', updatedPlayers);
+      setPlayers(updatedPlayers);
+    });
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off('connect_error');
+      socket.off('updatePlayers');
+    };
   }, []);
 
   const handleMove = (event) => {
@@ -135,7 +145,7 @@ const App = () => {
 
     // Отправляем данные движения на сервер
     socket.emit('playerMove', {
-      id: socket.id, // Уникальный идентификатор игрока
+      id: socket.id,
       position: newPosition.toArray(),
       rotation: Math.atan2(y, x) + 1.5,
       animationName: 'Run',
