@@ -91,21 +91,10 @@ const App = () => {
 
   const [isMoving, setIsMoving] = useState(false);
 
-  // Подключение к Socket.IO серверу для получения движений других игроков
+  // Получаем список всех игроков с сервера
   useEffect(() => {
-    socket.on('playerMove', (data) => {
-      setPlayers((prevPlayers) => {
-        const updatedPlayers = [...prevPlayers];
-        const index = updatedPlayers.findIndex(p => p.id === data.id);
-        
-        if (index !== -1) {
-          updatedPlayers[index] = data; // Обновляем данные игрока
-        } else {
-          updatedPlayers.push(data); // Добавляем нового игрока
-        }
-        
-        return updatedPlayers;
-      });
+    socket.on('updatePlayers', (updatedPlayers) => {
+      setPlayers(updatedPlayers); // Обновляем список игроков
     });
   }, []);
 
