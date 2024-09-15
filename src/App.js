@@ -6,7 +6,7 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 
 // Подключаемся к серверу
-const socket = io('http://212.67.15.4:5000');
+const socket = io('http://brandingsite.store:5000');
 
 // Компонент для загрузки модели игрока
 const Player = ({ position, rotation, animationName }) => {
@@ -16,10 +16,8 @@ const Player = ({ position, rotation, animationName }) => {
 
   useEffect(() => {
     if (actions) {
-      // Останавливаем все анимации
       Object.values(actions).forEach(action => action.stop());
 
-      // Запускаем указанную анимацию
       if (animationName && actions[animationName]) {
         actions[animationName].play();
       }
@@ -57,13 +55,13 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
     }
   });
 
-  return null; // Этот компонент не рендерит свою камеру, так как управляет существующей
+  return null;
 };
 
 // Компонент для создания текстурированного пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  
+
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -81,7 +79,6 @@ const App = () => {
   const [players, setPlayers] = useState([]); // Хранение всех игроков
   const [isMoving, setIsMoving] = useState(false);
 
-  // Обработка подключения и ошибок
   useEffect(() => {
     socket.on('connect', () => {
       console.log('Connected to server with id:', socket.id);
@@ -112,21 +109,19 @@ const App = () => {
     const { x, y } = event;
     const movementSpeed = 0.2;
 
-    // Определяем направление движения в зависимости от камеры
     const moveDirection = new Vector3(
       Math.sin(cameraRotation),
       0,
       Math.cos(cameraRotation)
     ).normalize();
 
-    // Определяем вектор движения относительно направления камеры
     const rightVector = new Vector3(
       Math.sin(cameraRotation + Math.PI / 2),
       0,
       Math.cos(cameraRotation + Math.PI / 2)
     ).normalize();
 
-    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed); // Вперёд - вниз
+    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
     const newPosition = new Vector3(
@@ -140,10 +135,9 @@ const App = () => {
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
       setIsMoving(true);
-      setPlayerRotation(Math.atan2(y, x) + 1.5); // Устанавливаем направление игрока
+      setPlayerRotation(Math.atan2(y, x) + 1.5);
     }
 
-    // Отправляем данные движения на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -172,7 +166,6 @@ const App = () => {
         <Player position={playerPosition} rotation={playerRotation} animationName={animationName} />
         <TexturedFloor />
         
-        {/* Отображаем всех других игроков */}
         {players.map((player) => (
           <Player key={player.id} position={player.position} rotation={player.rotation} animationName={player.animationName} />
         ))}

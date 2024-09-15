@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: 'https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app',
+    origin: 'https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', // Ваш домен
     methods: ['GET', 'POST']
   }
 });
@@ -15,21 +15,43 @@ const io = socketIo(server, {
 // Настройка CORS для всех маршрутов
 app.use(cors());
 
+const players = {}; // Хранение данных о всех игроках
+
 io.on('connection', (socket) => {
   console.log('New client connected', socket.id);
 
-  // Отправляем всем клиентам данные о подключении нового клиента
-  io.emit('playerCount', io.engine.clientsCount);
+  // Добавляем нового игрока
+  players[socket.id] = {
+    id: socket.id,
+    position: [0, 0, 0],
+    rotation: 0,
+    animationName: 'St'
+  };
+
+  // Отправляем всем игрокам обновленный список игроков
+  io.emit('updatePlayers', Object.values(players));
 
   socket.on('playerMove', (data) => {
-    socket.broadcast.emit('playerMove', data);
+    // Обновляем данные игрока
+    players[data.id] = {
+      ...players[data.id],
+      position: data.position,
+      rotation: data.rotation,
+      animationName: data.animationName
+    };
+
+    // Отправляем обновленные данные о движении всем клиентам
+    io.emit('updatePlayers', Object.values(players));
   });
 
   socket.on('disconnect', () => {
     console.log('Client disconnected', socket.id);
 
-    // Отправляем всем клиентам данные о дисконнекте клиента
-    io.emit('playerCount', io.engine.clientsCount);
+    // Удаляем игрока из списка
+    delete players[socket.id];
+
+    // Отправляем всем клиентам обновленный список игроков
+    io.emit('updatePlayers', Object.values(players));
   });
 });
 
