@@ -5,14 +5,15 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу через HTTPS
-const socket = io('https://brandingsite.store:5000');
+// Подключаемся к серверу
+const socket = io('http://brandingsite.store:5000');
 
+// Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions, mixer } = useAnimations(animations, group);
-
+  
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
@@ -25,6 +26,7 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
+    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
@@ -38,6 +40,7 @@ const Player = ({ id, position, rotation, animationName }) => {
   );
 };
 
+// Компонент для камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
   const distance = 5;
@@ -60,9 +63,10 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
   return null;
 };
 
+// Компонент для пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-
+  
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -71,6 +75,7 @@ const TexturedFloor = () => {
   );
 };
 
+// Главный компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
@@ -127,11 +132,12 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5);
+      setPlayerRotation(Math.atan2(y, x) + 1.5); 
     } else {
       setAnimationName('St');
     }
 
+    // Отправляем данные движения на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -167,10 +173,12 @@ const App = () => {
         <pointLight position={[10, 10, 10]} />
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
+        {/* Собственная модель игрока */}
         <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
 
         <TexturedFloor />
-
+        
+        {/* Другие игроки */}
         {players.map((player) => (
           player.id !== socket.id && (
             <Player
@@ -184,18 +192,20 @@ const App = () => {
         ))}
       </Canvas>
 
+      {/* Джойстик для управления персонажем */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick
-          size={80}
-          baseColor="gray"
-          stickColor="black"
-          move={handleMove}
-          stop={handleStop}
+        <Joystick 
+          size={80} 
+          baseColor="gray" 
+          stickColor="black" 
+          move={handleMove} 
+          stop={handleStop} 
         />
       </div>
 
+      {/* Кнопка для заброса удочки */}
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
-        <button
+        <button 
           onClick={handleFishing}
           style={{
             width: '60px',

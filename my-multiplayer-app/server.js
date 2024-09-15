@@ -7,14 +7,14 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://66e6b3bfb3a864737251968c--magical-cucurucho-5ce770.netlify.app/', 'http://localhost:3000'],
+    origin: 'http://eleonhrcenter.com', // Ваш основной клиентский домен
     methods: ['GET', 'POST']
   }
 });
 
 // Настройка CORS для всех маршрутов
 app.use(cors({
-  origin: ['https://66e6b3bfb3a864737251968c--magical-cucurucho-5ce770.netlify.app/', 'http://localhost:3000'],
+  origin: 'http://eleonhrcenter.com', // Ваш основной клиентский домен
   methods: ['GET', 'POST'],
   credentials: true
 }));
