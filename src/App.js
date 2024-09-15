@@ -5,10 +5,8 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу через HTTPS
 const socket = io('https://brandingsite.store:5000'); // Используйте HTTPS
 
-// Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
@@ -26,7 +24,6 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
-    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
@@ -40,7 +37,6 @@ const Player = ({ id, position, rotation, animationName }) => {
   );
 };
 
-// Компонент для камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
   const distance = 5;
@@ -63,7 +59,6 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
   return null;
 };
 
-// Компонент для пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   
@@ -75,7 +70,6 @@ const TexturedFloor = () => {
   );
 };
 
-// Главный компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
@@ -137,62 +131,40 @@ const App = () => {
       setAnimationName('St');
     }
 
-    // Отправляем данные движения на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: Math.atan2(y, x) + 1.5,
-      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+      rotation: playerRotation,
+      animationName
     });
   };
 
   const handleStop = () => {
     setAnimationName('St');
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'St',
-    });
   };
 
   const handleFishing = () => {
-    setAnimationName('Fs_2');
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'Fs_2',
-    });
+    console.log('Fishing action triggered');
+    // Добавьте логику для заброса удочки
   };
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+    <div style={{ height: '100vh' }}>
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
-
-        {/* Собственная модель игрока */}
-        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
-
         <TexturedFloor />
-        
-        {/* Другие игроки */}
-        {players.map((player) => (
-          player.id !== socket.id && (
-            <Player
-              key={player.id}
-              id={player.id}
-              position={player.position}
-              rotation={player.rotation}
-              animationName={player.animationName}
-            />
-          )
+        {players.map(player => (
+          <Player 
+            key={player.id} 
+            id={player.id}
+            position={player.position}
+            rotation={player.rotation}
+            animationName={player.animationName}
+          />
         ))}
+        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
       </Canvas>
-
-      {/* Джойстик для управления персонажем */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick 
           size={80} 
@@ -202,8 +174,6 @@ const App = () => {
           stop={handleStop} 
         />
       </div>
-
-      {/* Кнопка для заброса удочки */}
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
         <button 
           onClick={handleFishing}

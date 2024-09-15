@@ -8,19 +8,25 @@ const app = express();
 
 // Настройка HTTPS
 const server = https.createServer({
-  key: fs.readFileSync('/serf.crt'),   // Замените на путь к вашему SSL ключу
-  cert: fs.readFileSync('/key.pem')   // Замените на путь к вашему SSL сертификату
+  key: fs.readFileSync('/key.pem'),   // Замените на путь к вашему SSL ключу
+  cert: fs.readFileSync('/serf.crt')   // Замените на путь к вашему SSL сертификату
 }, app);
 
 const io = socketIo(server, {
   cors: {
-    origin: ['https://66e6a018273d2d5cd767cdc0--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
+    origin: [
+      'https://66e6a018273d2d5cd767cdc0--magical-cucurucho-5ce770.netlify.app', 
+      'http://localhost:3000'
+    ],
     methods: ['GET', 'POST']
   }
 });
 
 app.use(cors({
-  origin: ['https://66e6a018273d2d5cd767cdc0--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
+  origin: [
+    'https://66e6a018273d2d5cd767cdc0--magical-cucurucho-5ce770.netlify.app', 
+    'http://localhost:3000'
+  ],
   methods: ['GET', 'POST'],
   credentials: true
 }));
