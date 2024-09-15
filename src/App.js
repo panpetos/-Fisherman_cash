@@ -6,7 +6,7 @@ import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 // Подключаемся к серверу
-const socket = io('http://brandingsite.store:5000');
+const socket = io('https://brandingsite.store');
 
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {

@@ -7,14 +7,14 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: 'http://eleonhrcenter.com', // Ваш основной клиентский домен
+    origin: ['https://eleonhrcenter.com', 'http://localhost:3000'],
     methods: ['GET', 'POST']
   }
 });
 
 // Настройка CORS для всех маршрутов
 app.use(cors({
-  origin: 'http://eleonhrcenter.com', // Ваш основной клиентский домен
+  origin: ['https://eleonhrcenter.com', 'http://localhost:3000'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
