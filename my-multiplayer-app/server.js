@@ -7,14 +7,14 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'], // Добавляем оба домена
+    origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
     methods: ['GET', 'POST']
   }
 });
 
 // Настройка CORS для всех маршрутов
 app.use(cors({
-  origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'], // Разрешаем оба домена
+  origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
@@ -32,7 +32,7 @@ io.on('connection', (socket) => {
     animationName: 'St'
   };
 
-  // Отправляем всем игрокам обновленный список игроков
+  // Отправляем всем клиентам обновленный список игроков
   io.emit('updatePlayers', Object.values(players));
 
   socket.on('playerMove', (data) => {
