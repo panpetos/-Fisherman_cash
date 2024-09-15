@@ -7,13 +7,17 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: 'https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', // Ваш домен
+    origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'], // Добавляем оба домена
     methods: ['GET', 'POST']
   }
 });
 
 // Настройка CORS для всех маршрутов
-app.use(cors());
+app.use(cors({
+  origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'], // Разрешаем оба домена
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 
 const players = {}; // Хранение данных о всех игроках
 
