@@ -1,20 +1,26 @@
+const fs = require('fs');
+const https = require('https');
 const express = require('express');
-const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 
 const app = express();
-const server = http.createServer(app);
+
+// Настройка HTTPS
+const server = https.createServer({
+  key: fs.readFileSync('/serf.crt'),   // Замените на путь к вашему SSL ключу
+  cert: fs.readFileSync('/key.pem')   // Замените на путь к вашему SSL сертификату
+}, app);
+
 const io = socketIo(server, {
   cors: {
-    origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
+    origin: ['https://66e6a018273d2d5cd767cdc0--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
     methods: ['GET', 'POST']
   }
 });
 
-// Настройка CORS для всех маршрутов
 app.use(cors({
-  origin: ['https://66e619a9a1ec47f1c1e3853b--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
+  origin: ['https://66e6a018273d2d5cd767cdc0--magical-cucurucho-5ce770.netlify.app', 'http://localhost:3000'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
@@ -35,20 +41,17 @@ io.on('connection', (socket) => {
   // Отправляем всем клиентам обновленный список игроков
   io.emit('updatePlayers', Object.values(players));
 
-  // Обработка данных о движении игрока
   socket.on('playerMove', (data) => {
-    if (players[data.id]) {
-      // Обновляем данные игрока
-      players[data.id] = {
-        ...players[data.id],
-        position: data.position,
-        rotation: data.rotation,
-        animationName: data.animationName
-      };
+    // Обновляем данные игрока
+    players[data.id] = {
+      ...players[data.id],
+      position: data.position,
+      rotation: data.rotation,
+      animationName: data.animationName
+    };
 
-      // Отправляем обновленные данные о движении всем клиентам
-      io.emit('updatePlayers', Object.values(players));
-    }
+    // Отправляем обновленные данные о движении всем клиентам
+    io.emit('updatePlayers', Object.values(players));
   });
 
   socket.on('disconnect', () => {
@@ -62,5 +65,5 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 443; // Порт для HTTPS
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

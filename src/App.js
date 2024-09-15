@@ -5,32 +5,33 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу
-const socket = io('http://brandingsite.store:5000');
+// Подключаемся к серверу через HTTPS
+const socket = io('https://brandingsite.store:5000'); // Используйте HTTPS
 
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions } = useAnimations(animations, group);
-
+  const { actions, mixer } = useAnimations(animations, group);
+  
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
-      action?.reset().fadeIn(0.5).play();
-      
+      action.reset().fadeIn(0.5).play();
+
       return () => {
-        action?.fadeOut(0.5).stop();
+        action.fadeOut(0.5).stop();
       };
     }
   }, [animationName, actions]);
 
   useEffect(() => {
+    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
     }
-  }, [position, rotation]);
+  });
 
   return (
     <group ref={group}>
@@ -136,6 +137,7 @@ const App = () => {
       setAnimationName('St');
     }
 
+    // Отправляем данные движения на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
