@@ -218,7 +218,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить
+          Забросить---
         </button>
       </div>
     </div>
