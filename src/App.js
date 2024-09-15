@@ -5,10 +5,8 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-const socket = io('http://brandingsite.store:5000', {
-  transports: ['websocket'],
-  secure: false  // Подключение по незащищенному каналу
-});
+// Подключаемся к серверу через HTTPS
+const socket = io('https://brandingsite.store:5000');
 
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
@@ -220,7 +218,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить---
+          Забросить
         </button>
       </div>
     </div>
