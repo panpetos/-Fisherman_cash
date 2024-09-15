@@ -5,13 +5,14 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-const socket = io('https://brandingsite.store:5000'); // Используйте HTTPS
+// Подключаемся к серверу через HTTPS
+const socket = io('https://brandingsite.store:5000');
 
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions, mixer } = useAnimations(animations, group);
-  
+
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
@@ -61,7 +62,7 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
 
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  
+
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -126,7 +127,7 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5); 
+      setPlayerRotation(Math.atan2(y, x) + 1.5);
     } else {
       setAnimationName('St');
     }
@@ -134,48 +135,67 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: playerRotation,
-      animationName
+      rotation: Math.atan2(y, x) + 1.5,
+      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
 
   const handleStop = () => {
     setAnimationName('St');
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      rotation: playerRotation,
+      animationName: 'St',
+    });
   };
 
   const handleFishing = () => {
-    console.log('Fishing action triggered');
-    // Добавьте логику для заброса удочки
+    setAnimationName('Fs_2');
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      rotation: playerRotation,
+      animationName: 'Fs_2',
+    });
   };
 
   return (
-    <div style={{ height: '100vh' }}>
+    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <TexturedFloor />
-        {players.map(player => (
-          <Player 
-            key={player.id} 
-            id={player.id}
-            position={player.position}
-            rotation={player.rotation}
-            animationName={player.animationName}
-          />
-        ))}
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
+
+        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
+
+        <TexturedFloor />
+
+        {players.map((player) => (
+          player.id !== socket.id && (
+            <Player
+              key={player.id}
+              id={player.id}
+              position={player.position}
+              rotation={player.rotation}
+              animationName={player.animationName}
+            />
+          )
+        ))}
       </Canvas>
+
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
+        <Joystick
+          size={80}
+          baseColor="gray"
+          stickColor="black"
+          move={handleMove}
+          stop={handleStop}
         />
       </div>
+
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
-        <button 
+        <button
           onClick={handleFishing}
           style={{
             width: '60px',
