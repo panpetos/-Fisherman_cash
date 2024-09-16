@@ -42,8 +42,8 @@ const Player = ({ id, position, rotation, animationName }) => {
 // Компонент для камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
-  const distance = 5;
-  const height = 2;
+  const distance = 10; // Расстояние камеры
+  const height = 5;    // Высота камеры
 
   useFrame(() => {
     if (camera) {
