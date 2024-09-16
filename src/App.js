@@ -10,7 +10,7 @@ const socket = io('https://brandingsite.store:5000');
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions, mixer } = useAnimations(animations, group);
+  const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
     if (actions && animationName) {
@@ -76,7 +76,8 @@ const App = () => {
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
-  const [isDragging, setIsDragging] = useState(false); // Для управления камерой
+  const [isDragging, setIsDragging] = useState(false);
+  const [initialCameraRotation, setInitialCameraRotation] = useState(cameraRotation);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -103,15 +104,15 @@ const App = () => {
     const movementSpeed = 0.2;
 
     const moveDirection = new Vector3(
-      Math.sin(cameraRotation),
+      Math.sin(initialCameraRotation),
       0,
-      Math.cos(cameraRotation)
+      Math.cos(initialCameraRotation)
     ).normalize();
 
     const rightVector = new Vector3(
-      Math.sin(cameraRotation + Math.PI / 2),
+      Math.sin(initialCameraRotation + Math.PI / 2),
       0,
-      Math.cos(cameraRotation + Math.PI / 2)
+      Math.cos(initialCameraRotation + Math.PI / 2)
     ).normalize();
 
     const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
@@ -127,7 +128,7 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(cameraRotation); // Поворот персонажа в сторону камеры
+      setPlayerRotation(Math.atan2(forwardMovement.z, forwardMovement.x));
     } else {
       setAnimationName('St');
     }
@@ -135,7 +136,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: cameraRotation, // Синхронизируем с камерой
+      rotation: playerRotation,
       animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
@@ -160,7 +161,6 @@ const App = () => {
     });
   };
 
-  // Функции для управления поворотом камеры
   const handleMouseDown = () => {
     setIsDragging(true);
   };
@@ -184,7 +184,7 @@ const App = () => {
   const handleTouchMove = (e) => {
     if (isDragging && e.touches && e.touches.length === 1) {
       const touch = e.touches[0];
-      const movementX = touch.pageX - touch.clientX; // Смещение пальца
+      const movementX = touch.clientX - (window.innerWidth / 2); // Смещение пальца
       const rotationSpeed = 0.005;
       setCameraRotation((prev) => prev - movementX * rotationSpeed);
     }
@@ -209,12 +209,10 @@ const App = () => {
         <pointLight position={[10, 10, 10]} />
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
-        {/* Собственная модель игрока */}
         <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
 
         <TexturedFloor />
 
-        {/* Другие игроки */}
         {players.map((player) => (
           player.id !== socket.id && (
             <Player
@@ -228,7 +226,6 @@ const App = () => {
         ))}
       </Canvas>
 
-      {/* Джойстик для управления персонажем */}
       <div style={{ position: 'absolute', left: '50%', bottom: 20, transform: 'translateX(-50%)' }}>
         <Joystick
           size={80}
@@ -239,7 +236,6 @@ const App = () => {
         />
       </div>
 
-      {/* Кнопка для заброса удочки */}
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
         <button
           onClick={handleFishing}
