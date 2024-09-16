@@ -11,7 +11,7 @@ const socket = io('https://brandingsite.store:5000');
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName, isCurrentPlayer }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
+  const { scene, animations } = useGLTF('https://eleonhrcenter.com/models/Player.glb');
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -201,14 +201,16 @@ const App = () => {
         
         {/* Другие игроки */}
         {players.map((player) => (
-          <Player
-            key={player.id}
-            id={player.id}
-            position={player.position}
-            rotation={player.rotation}
-            animationName={player.animationName}
-            isCurrentPlayer={false} // Другие игроки
-          />
+          player.id !== socket.id && (
+            <Player
+              key={player.id}
+              id={player.id}
+              position={player.position}
+              rotation={player.rotation}
+              animationName={player.animationName}
+              isCurrentPlayer={false} // Убедитесь, что эта модель видима для всех
+            />
+          )
         ))}
       </Canvas>
 
@@ -248,7 +250,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить-1
+          Забросить-2
         </button>
       </div>
     </div>
@@ -256,4 +258,3 @@ const App = () => {
 };
 
 export default App;
-
