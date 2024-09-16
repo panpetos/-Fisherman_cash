@@ -249,7 +249,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить
+          Забросить-5
         </button>
       </div>
     </div>
