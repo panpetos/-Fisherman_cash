@@ -26,7 +26,6 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
-    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
@@ -109,21 +108,26 @@ const App = () => {
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.2;
 
-    const moveDirection = new Vector3(
-      Math.sin(cameraRotation),
+    // Направление камеры
+    const cameraDirection = new Vector3(
+      -Math.sin(cameraRotation),
       0,
       Math.cos(cameraRotation)
     ).normalize();
 
+    // Вектор вправо относительно направления камеры
     const rightVector = new Vector3(
-      Math.sin(cameraRotation + Math.PI / 2),
+      Math.cos(cameraRotation),
       0,
-      Math.cos(cameraRotation + Math.PI / 2)
+      Math.sin(cameraRotation)
     ).normalize();
 
-    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
+    // Движение вперед-назад относительно камеры
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
+    // Движение влево-вправо относительно камеры
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
+    // Обновление позиции игрока
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -132,9 +136,12 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
+    // Устанавливаем поворот игрока так, чтобы он был направлен по направлению движения
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5); 
+      const movementDirection = forwardMovement.clone().add(rightMovement);
+      const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+      setPlayerRotation(directionAngle); 
     } else {
       setAnimationName('St');
     }
@@ -143,7 +150,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: Math.atan2(y, x) + 1.5,
+      rotation: playerRotation,
       animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
