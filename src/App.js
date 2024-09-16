@@ -7,6 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 const socket = io('https://brandingsite.store:5000');
 
+// Player Component
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
@@ -16,7 +17,6 @@ const Player = ({ id, position, rotation, animationName }) => {
     if (actions && animationName) {
       const action = actions[animationName];
       action.reset().fadeIn(0.5).play();
-
       return () => {
         action.fadeOut(0.5).stop();
       };
@@ -28,7 +28,7 @@ const Player = ({ id, position, rotation, animationName }) => {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
     }
-  });
+  }, [position, rotation]);
 
   return (
     <group ref={group}>
@@ -37,6 +37,7 @@ const Player = ({ id, position, rotation, animationName }) => {
   );
 };
 
+// Follow Camera
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
   const distance = 5;
@@ -49,7 +50,6 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
         height,
         Math.cos(cameraRotation) * distance
       );
-
       const targetPosition = new Vector3(...playerPosition).add(offset);
       camera.position.copy(targetPosition);
       camera.lookAt(new Vector3(...playerPosition));
@@ -59,9 +59,10 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
   return null;
 };
 
+// Floor Component
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-
+  
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -70,29 +71,18 @@ const TexturedFloor = () => {
   );
 };
 
+// Main App Component
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [initialCameraRotation, setInitialCameraRotation] = useState(cameraRotation);
-  const [isJoystickActive, setIsJoystickActive] = useState(false);
-
+  
   useEffect(() => {
-    socket.on('connect', () => {
-      console.log('Connected to server with id:', socket.id);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
-    socket.on('updatePlayers', (updatedPlayers) => {
-      setPlayers(updatedPlayers);
-    });
-
+    socket.on('connect', () => console.log('Connected to server with id:', socket.id));
+    socket.on('disconnect', () => console.log('Disconnected from server'));
+    socket.on('updatePlayers', (updatedPlayers) => setPlayers(updatedPlayers));
     return () => {
       socket.off('connect');
       socket.off('disconnect');
@@ -100,50 +90,53 @@ const App = () => {
     };
   }, []);
 
+  // Movement logic
   const handleMove = (event) => {
-    if (isJoystickActive) {
-      const { x, y } = event;
-      const movementSpeed = 0.2;
+    const { x, y } = event;
+    const movementSpeed = 0.2;
 
-      // Определяем направления в зависимости от начального направления камеры
-      const moveDirection = new Vector3(
-        Math.sin(initialCameraRotation),
-        0,
-        Math.cos(initialCameraRotation)
-      ).normalize();
+    const moveDirection = new Vector3(
+      Math.sin(cameraRotation),
+      0,
+      Math.cos(cameraRotation)
+    ).normalize();
 
-      const rightVector = new Vector3(
-        Math.sin(initialCameraRotation + Math.PI / 2),
-        0,
-        Math.cos(initialCameraRotation + Math.PI / 2)
-      ).normalize();
+    const rightVector = new Vector3(
+      Math.sin(cameraRotation + Math.PI / 2),
+      0,
+      Math.cos(cameraRotation + Math.PI / 2)
+    ).normalize();
 
-      // Перемещение вперед и вправо
-      const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
-      const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
+    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
-      const newPosition = new Vector3(
-        playerPosition[0] + forwardMovement.x + rightMovement.x,
-        playerPosition[1],
-        playerPosition[2] + forwardMovement.z + rightMovement.z
-      );
+    const newPosition = new Vector3(
+      playerPosition[0] + forwardMovement.x + rightMovement.x,
+      playerPosition[1],
+      playerPosition[2] + forwardMovement.z + rightMovement.z
+    );
 
-      setPlayerPosition(newPosition.toArray());
+    setPlayerPosition(newPosition.toArray());
 
-      if (y !== 0 || x !== 0) {
-        setAnimationName('Run');
-        setPlayerRotation(Math.atan2(forwardMovement.z, forwardMovement.x));
-      } else {
-        setAnimationName('St');
-      }
-
-      socket.emit('playerMove', {
-        id: socket.id,
-        position: newPosition.toArray(),
-        rotation: playerRotation,
-        animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
-      });
+    if (y !== 0 || x !== 0) {
+      setAnimationName('Run');
+      setPlayerRotation(Math.atan2(y, x) + 1.5);
+    } else {
+      setAnimationName('St');
     }
+
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: newPosition.toArray(),
+      rotation: Math.atan2(y, x) + 1.5,
+      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+    });
+  };
+
+  // Camera rotation
+  const handleRotate = (event) => {
+    const { x } = event;
+    setCameraRotation((prev) => prev + x * 0.05);
   };
 
   const handleStop = () => {
@@ -166,70 +159,19 @@ const App = () => {
     });
   };
 
-  const handleMouseDown = () => {
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e) => {
-    if (isDragging) {
-      const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
-      const rotationSpeed = 0.005;
-      setCameraRotation((prev) => prev - movementX * rotationSpeed);
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (e) => {
-    setIsDragging(true);
-    if (e.touches && e.touches.length === 1) {
-      const touch = e.touches[0];
-      const touchStartX = touch.clientX;
-      const touchStartY = touch.clientY;
-
-      document.addEventListener('touchmove', (event) => {
-        if (isDragging && event.touches && event.touches.length === 1) {
-          const touch = event.touches[0];
-          const movementX = touch.clientX - touchStartX;
-          const rotationSpeed = 0.005;
-          setCameraRotation((prev) => prev - movementX * rotationSpeed);
-        }
-      }, { once: true });
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
-
-  const handleJoystickStart = () => {
-    setIsJoystickActive(true);
-  };
-
-  const handleJoystickStop = () => {
-    setIsJoystickActive(false);
-  };
-
   return (
-    <div
-      style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
+        {/* Player Model */}
         <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
 
         <TexturedFloor />
 
+        {/* Other Players */}
         {players.map((player) => (
           player.id !== socket.id && (
             <Player
@@ -243,20 +185,30 @@ const App = () => {
         ))}
       </Canvas>
 
-      <div style={{ position: 'absolute', left: '50%', bottom: 20, transform: 'translateX(-50%)' }}>
-        <Joystick
-          size={80}
-          baseColor="gray"
-          stickColor="black"
-          move={handleMove}
-          stop={handleStop}
-          onStart={handleJoystickStart}
-          onStop={handleJoystickStop}
+      {/* Joystick for movement */}
+      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
+        <Joystick 
+          size={80} 
+          baseColor="gray" 
+          stickColor="black" 
+          move={handleMove} 
+          stop={handleStop} 
         />
       </div>
 
+      {/* Joystick for camera rotation */}
+      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
+        <Joystick 
+          size={80} 
+          baseColor="gray" 
+          stickColor="black" 
+          move={handleRotate} 
+        />
+      </div>
+
+      {/* Button for fishing */}
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
-        <button
+        <button 
           onClick={handleFishing}
           style={{
             width: '60px',
