@@ -170,18 +170,21 @@ const App = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
-        handleMove({
-          x: movementDirectionRef.current.x,
-          y: movementDirectionRef.current.y,
-        });
+        handleMove(movementDirectionRef.current);
       }
-    }, 100);
+    }, 50); // интервал обновления
 
     return () => clearInterval(interval);
-  }, []);
+  }, [cameraRotation, playerPosition]);
 
   const handleFishing = () => {
-    console.log('Fishing button clicked');
+    setAnimationName('Fs_2');
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      rotation: playerRotation,
+      animationName: 'Fs_2',
+    });
   };
 
   return (
@@ -246,7 +249,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить
+          Бросить
         </button>
       </div>
     </div>
