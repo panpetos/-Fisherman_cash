@@ -11,7 +11,7 @@ const socket = io('https://brandingsite.store:5000');
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName, isCurrentPlayer }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('https://eleonhrcenter.com/models/Player.glb');
+  const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -33,17 +33,15 @@ const Player = ({ id, position, rotation, animationName, isCurrentPlayer }) => {
   }, [position, rotation]);
 
   return (
-    <group ref={group} visible={isCurrentPlayer}>
+    <group ref={group} visible={isCurrentPlayer || id}>
       <primitive object={scene} />
     </group>
   );
 };
 
 // Компонент для камеры от третьего лица
-const FollowCamera = ({ playerPosition, cameraRotation }) => {
+const FollowCamera = ({ playerPosition, cameraRotation, height, distance }) => {
   const { camera } = useThree();
-  const distance = 10; // Расстояние камеры
-  const height = 5;    // Высота камеры
 
   useFrame(() => {
     if (camera) {
@@ -82,6 +80,9 @@ const App = () => {
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  
+  const cameraHeight = 5;  // Высота камеры
+  const cameraDistance = 10;  // Расстояние камеры
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -93,6 +94,7 @@ const App = () => {
     });
 
     socket.on('updatePlayers', (updatedPlayers) => {
+      console.log('Received player data:', updatedPlayers);
       setPlayers(updatedPlayers);
     });
 
@@ -141,7 +143,7 @@ const App = () => {
       setAnimationName('Run');
       const movementDirection = forwardMovement.clone().add(rightMovement);
       const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-      setPlayerRotation(directionAngle); 
+      setPlayerRotation(directionAngle);
     } else {
       setAnimationName('St');
     }
@@ -192,10 +194,21 @@ const App = () => {
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
+        <FollowCamera 
+          playerPosition={playerPosition} 
+          cameraRotation={cameraRotation} 
+          height={cameraHeight} 
+          distance={cameraDistance} 
+        />
 
         {/* Собственная модель игрока */}
-        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} isCurrentPlayer={true} />
+        <Player 
+          id={socket.id} 
+          position={playerPosition} 
+          rotation={playerRotation} 
+          animationName={animationName}
+          isCurrentPlayer={true} 
+        />
 
         <TexturedFloor />
         
@@ -208,7 +221,7 @@ const App = () => {
               position={player.position}
               rotation={player.rotation}
               animationName={player.animationName}
-              isCurrentPlayer={false} // Убедитесь, что эта модель видима для всех
+              isCurrentPlayer={false}
             />
           )
         ))}
@@ -235,7 +248,7 @@ const App = () => {
         />
       </div>
 
-      {/* Кнопка для заброса удочки, перемещена выше */}
+      {/* Кнопка для заброса удочки */}
       <div style={{ position: 'absolute', bottom: 100, left: 20 }}>
         <button 
           onClick={handleFishing}
@@ -250,7 +263,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить-2
+          Забросить-3
         </button>
       </div>
     </div>

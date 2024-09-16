@@ -60,6 +60,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     delete players[socket.id];
     io.emit('updatePlayers', Object.values(players));
+    console.log('Player disconnected:', socket.id);
+    console.log('Current players:', Object.values(players));
   });
 });
 
