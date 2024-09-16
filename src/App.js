@@ -13,7 +13,7 @@ const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
-  
+
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
@@ -249,7 +249,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить-5
+          Бросить
         </button>
       </div>
     </div>
