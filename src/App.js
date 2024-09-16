@@ -78,6 +78,7 @@ const App = () => {
   const [players, setPlayers] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [initialCameraRotation, setInitialCameraRotation] = useState(cameraRotation);
+  const [isJoystickActive, setIsJoystickActive] = useState(false);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -100,45 +101,49 @@ const App = () => {
   }, []);
 
   const handleMove = (event) => {
-    const { x, y } = event;
-    const movementSpeed = 0.2;
+    if (isJoystickActive) {
+      const { x, y } = event;
+      const movementSpeed = 0.2;
 
-    const moveDirection = new Vector3(
-      Math.sin(initialCameraRotation),
-      0,
-      Math.cos(initialCameraRotation)
-    ).normalize();
+      // Определяем направления в зависимости от начального направления камеры
+      const moveDirection = new Vector3(
+        Math.sin(initialCameraRotation),
+        0,
+        Math.cos(initialCameraRotation)
+      ).normalize();
 
-    const rightVector = new Vector3(
-      Math.sin(initialCameraRotation + Math.PI / 2),
-      0,
-      Math.cos(initialCameraRotation + Math.PI / 2)
-    ).normalize();
+      const rightVector = new Vector3(
+        Math.sin(initialCameraRotation + Math.PI / 2),
+        0,
+        Math.cos(initialCameraRotation + Math.PI / 2)
+      ).normalize();
 
-    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
-    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+      // Перемещение вперед и вправо
+      const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
+      const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
-    const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x + rightMovement.x,
-      playerPosition[1],
-      playerPosition[2] + forwardMovement.z + rightMovement.z
-    );
+      const newPosition = new Vector3(
+        playerPosition[0] + forwardMovement.x + rightMovement.x,
+        playerPosition[1],
+        playerPosition[2] + forwardMovement.z + rightMovement.z
+      );
 
-    setPlayerPosition(newPosition.toArray());
+      setPlayerPosition(newPosition.toArray());
 
-    if (y !== 0 || x !== 0) {
-      setAnimationName('Run');
-      setPlayerRotation(Math.atan2(forwardMovement.z, forwardMovement.x));
-    } else {
-      setAnimationName('St');
+      if (y !== 0 || x !== 0) {
+        setAnimationName('Run');
+        setPlayerRotation(Math.atan2(forwardMovement.z, forwardMovement.x));
+      } else {
+        setAnimationName('St');
+      }
+
+      socket.emit('playerMove', {
+        id: socket.id,
+        position: newPosition.toArray(),
+        rotation: playerRotation,
+        animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+      });
     }
-
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: newPosition.toArray(),
-      rotation: playerRotation,
-      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
-    });
   };
 
   const handleStop = () => {
@@ -177,21 +182,34 @@ const App = () => {
     setIsDragging(false);
   };
 
-  const handleTouchStart = () => {
+  const handleTouchStart = (e) => {
     setIsDragging(true);
-  };
-
-  const handleTouchMove = (e) => {
-    if (isDragging && e.touches && e.touches.length === 1) {
+    if (e.touches && e.touches.length === 1) {
       const touch = e.touches[0];
-      const movementX = touch.clientX - (window.innerWidth / 2); // Смещение пальца
-      const rotationSpeed = 0.005;
-      setCameraRotation((prev) => prev - movementX * rotationSpeed);
+      const touchStartX = touch.clientX;
+      const touchStartY = touch.clientY;
+
+      document.addEventListener('touchmove', (event) => {
+        if (isDragging && event.touches && event.touches.length === 1) {
+          const touch = event.touches[0];
+          const movementX = touch.clientX - touchStartX;
+          const rotationSpeed = 0.005;
+          setCameraRotation((prev) => prev - movementX * rotationSpeed);
+        }
+      }, { once: true });
     }
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
+  };
+
+  const handleJoystickStart = () => {
+    setIsJoystickActive(true);
+  };
+
+  const handleJoystickStop = () => {
+    setIsJoystickActive(false);
   };
 
   return (
@@ -201,7 +219,6 @@ const App = () => {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <Canvas>
@@ -233,6 +250,8 @@ const App = () => {
           stickColor="black"
           move={handleMove}
           stop={handleStop}
+          onStart={handleJoystickStart}
+          onStop={handleJoystickStop}
         />
       </div>
 
