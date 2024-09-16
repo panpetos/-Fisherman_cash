@@ -5,18 +5,20 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
+// Подключаемся к серверу
 const socket = io('https://brandingsite.store:5000');
 
-// Player Component
+// Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions } = useAnimations(animations, group);
-
+  const { actions, mixer } = useAnimations(animations, group);
+  
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
       action.reset().fadeIn(0.5).play();
+
       return () => {
         action.fadeOut(0.5).stop();
       };
@@ -24,11 +26,12 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
+    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
     }
-  }, [position, rotation]);
+  });
 
   return (
     <group ref={group}>
@@ -37,7 +40,7 @@ const Player = ({ id, position, rotation, animationName }) => {
   );
 };
 
-// Follow Camera
+// Компонент для камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
   const distance = 5;
@@ -50,6 +53,7 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
         height,
         Math.cos(cameraRotation) * distance
       );
+
       const targetPosition = new Vector3(...playerPosition).add(offset);
       camera.position.copy(targetPosition);
       camera.lookAt(new Vector3(...playerPosition));
@@ -59,7 +63,7 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
   return null;
 };
 
-// Floor Component
+// Компонент для пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   
@@ -71,18 +75,28 @@ const TexturedFloor = () => {
   );
 };
 
-// Main App Component
+// Главный компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
-  
+  const movementDirectionRef = useRef({ x: 0, y: 0 });
+
   useEffect(() => {
-    socket.on('connect', () => console.log('Connected to server with id:', socket.id));
-    socket.on('disconnect', () => console.log('Disconnected from server'));
-    socket.on('updatePlayers', (updatedPlayers) => setPlayers(updatedPlayers));
+    socket.on('connect', () => {
+      console.log('Connected to server with id:', socket.id);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+
+    socket.on('updatePlayers', (updatedPlayers) => {
+      setPlayers(updatedPlayers);
+    });
+
     return () => {
       socket.off('connect');
       socket.off('disconnect');
@@ -90,9 +104,9 @@ const App = () => {
     };
   }, []);
 
-  // Movement logic
   const handleMove = (event) => {
     const { x, y } = event;
+    movementDirectionRef.current = { x, y };
     const movementSpeed = 0.2;
 
     const moveDirection = new Vector3(
@@ -120,11 +134,12 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5);
+      setPlayerRotation(Math.atan2(y, x) + 1.5); 
     } else {
       setAnimationName('St');
     }
 
+    // Отправляем данные движения на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -133,13 +148,8 @@ const App = () => {
     });
   };
 
-  // Camera rotation
-  const handleRotate = (event) => {
-    const { x } = event;
-    setCameraRotation((prev) => prev + x * 0.05);
-  };
-
   const handleStop = () => {
+    movementDirectionRef.current = { x: 0, y: 0 };
     setAnimationName('St');
     socket.emit('playerMove', {
       id: socket.id,
@@ -148,6 +158,17 @@ const App = () => {
       animationName: 'St',
     });
   };
+
+  // Обновляем движение, пока джойстик зажат
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
+        handleMove(movementDirectionRef.current);
+      }
+    }, 50); // интервал обновления
+
+    return () => clearInterval(interval);
+  }, [cameraRotation, playerPosition]);
 
   const handleFishing = () => {
     setAnimationName('Fs_2');
@@ -166,12 +187,12 @@ const App = () => {
         <pointLight position={[10, 10, 10]} />
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
-        {/* Player Model */}
+        {/* Собственная модель игрока */}
         <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
 
         <TexturedFloor />
-
-        {/* Other Players */}
+        
+        {/* Другие игроки */}
         {players.map((player) => (
           player.id !== socket.id && (
             <Player
@@ -185,7 +206,17 @@ const App = () => {
         ))}
       </Canvas>
 
-      {/* Joystick for movement */}
+      {/* Левый джойстик для вращения камеры */}
+      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
+        <Joystick 
+          size={80} 
+          baseColor="gray" 
+          stickColor="black" 
+          move={(e) => setCameraRotation((prev) => prev + e.x * 0.05)} 
+        />
+      </div>
+
+      {/* Правый джойстик для движения персонажа */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick 
           size={80} 
@@ -196,18 +227,8 @@ const App = () => {
         />
       </div>
 
-      {/* Joystick for camera rotation */}
-      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleRotate} 
-        />
-      </div>
-
-      {/* Button for fishing */}
-      <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
+      {/* Кнопка для заброса удочки, перемещена выше */}
+      <div style={{ position: 'absolute', bottom: 100, left: 20 }}>
         <button 
           onClick={handleFishing}
           style={{
