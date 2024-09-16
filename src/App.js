@@ -76,7 +76,7 @@ const App = () => {
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState(false); // Для управления камерой
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -127,7 +127,7 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + cameraRotation);
+      setPlayerRotation(cameraRotation); // Поворот персонажа в сторону камеры
     } else {
       setAnimationName('St');
     }
@@ -135,7 +135,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: Math.atan2(y, x) + cameraRotation,
+      rotation: cameraRotation, // Синхронизируем с камерой
       animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
@@ -160,15 +160,31 @@ const App = () => {
     });
   };
 
-  // Функция для обработки свайпов для вращения камеры
-  const handleTouchStart = (e) => {
+  // Функции для управления поворотом камеры
+  const handleMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+      const rotationSpeed = 0.005;
+      setCameraRotation((prev) => prev - movementX * rotationSpeed);
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchStart = () => {
     setIsDragging(true);
   };
 
   const handleTouchMove = (e) => {
     if (isDragging && e.touches && e.touches.length === 1) {
       const touch = e.touches[0];
-      const movementX = touch.movementX || touch.pageX;
+      const movementX = touch.pageX - touch.clientX; // Смещение пальца
       const rotationSpeed = 0.005;
       setCameraRotation((prev) => prev - movementX * rotationSpeed);
     }
@@ -181,6 +197,9 @@ const App = () => {
   return (
     <div
       style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
