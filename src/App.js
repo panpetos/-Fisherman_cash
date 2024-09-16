@@ -5,15 +5,13 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу через HTTPS
 const socket = io('https://brandingsite.store:5000');
 
-// Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions, mixer } = useAnimations(animations, group);
-  
+
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
@@ -26,7 +24,6 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
-    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
@@ -40,24 +37,10 @@ const Player = ({ id, position, rotation, animationName }) => {
   );
 };
 
-// Компонент для камеры от третьего лица с вращением вокруг персонажа
-const FollowCamera = ({ playerPosition, cameraRotation, setCameraRotation }) => {
+const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
   const distance = 5;
   const height = 2;
-  
-  // Обрабатываем движение мыши для вращения камеры
-  const handleMouseMove = (event) => {
-    const rotationSpeed = 0.005;
-    setCameraRotation((prevRotation) => prevRotation + event.movementX * rotationSpeed);
-  };
-
-  useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
-  }, []);
 
   useFrame(() => {
     if (camera) {
@@ -76,10 +59,9 @@ const FollowCamera = ({ playerPosition, cameraRotation, setCameraRotation }) => 
   return null;
 };
 
-// Компонент для пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  
+
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -88,13 +70,13 @@ const TexturedFloor = () => {
   );
 };
 
-// Главный компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -145,16 +127,15 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5); 
+      setPlayerRotation(Math.atan2(y, x) + cameraRotation);
     } else {
       setAnimationName('St');
     }
 
-    // Отправляем данные движения на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: Math.atan2(y, x) + 1.5,
+      rotation: Math.atan2(y, x) + cameraRotation,
       animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
@@ -179,18 +160,41 @@ const App = () => {
     });
   };
 
+  // Функция для обработки свайпов для вращения камеры
+  const handleTouchStart = (e) => {
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e) => {
+    if (isDragging && e.touches && e.touches.length === 1) {
+      const touch = e.touches[0];
+      const movementX = touch.movementX || touch.pageX;
+      const rotationSpeed = 0.005;
+      setCameraRotation((prev) => prev - movementX * rotationSpeed);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+    <div
+      style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} setCameraRotation={setCameraRotation} />
+        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
         {/* Собственная модель игрока */}
         <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
 
         <TexturedFloor />
-        
+
         {/* Другие игроки */}
         {players.map((player) => (
           player.id !== socket.id && (
@@ -206,19 +210,19 @@ const App = () => {
       </Canvas>
 
       {/* Джойстик для управления персонажем */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
+      <div style={{ position: 'absolute', left: '50%', bottom: 20, transform: 'translateX(-50%)' }}>
+        <Joystick
+          size={80}
+          baseColor="gray"
+          stickColor="black"
+          move={handleMove}
+          stop={handleStop}
         />
       </div>
 
       {/* Кнопка для заброса удочки */}
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
-        <button 
+        <button
           onClick={handleFishing}
           style={{
             width: '60px',
