@@ -168,105 +168,36 @@ const App = () => {
     });
   };
 
-  // Обновляем движение, пока джойстик зажат
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
-        handleMove(movementDirectionRef.current);
-      }
-    }, 50); // интервал обновления
-
-    return () => clearInterval(interval);
-  }, [cameraRotation, playerPosition]);
-
-  const handleFishing = () => {
-    setAnimationName('Fs_2');
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'Fs_2',
-    });
-  };
-
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-      <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera 
-          playerPosition={playerPosition} 
-          cameraRotation={cameraRotation} 
-          height={cameraHeight} 
-          distance={cameraDistance} 
+    <Canvas shadows>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 10, 5]} castShadow />
+      <TexturedFloor />
+      {players.map(player => (
+        <Player
+          key={player.id}
+          id={player.id}
+          position={player.position}
+          rotation={player.rotation}
+          animationName={player.animationName}
+          isCurrentPlayer={player.id === socket.id}
         />
-
-        {/* Собственная модель игрока */}
-        <Player 
-          id={socket.id} 
-          position={playerPosition} 
-          rotation={playerRotation} 
-          animationName={animationName}
-          isCurrentPlayer={true} 
-        />
-
-        <TexturedFloor />
-        
-        {/* Другие игроки */}
-        {players.map((player) => (
-          player.id !== socket.id && (
-            <Player
-              key={player.id}
-              id={player.id}
-              position={player.position}
-              rotation={player.rotation}
-              animationName={player.animationName}
-              isCurrentPlayer={false}
-            />
-          )
-        ))}
-      </Canvas>
-
-      {/* Левый джойстик для вращения камеры */}
-      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={(e) => setCameraRotation((prev) => prev + e.x * 0.05)} 
-        />
-      </div>
-
-      {/* Правый джойстик для движения персонажа */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
-        />
-      </div>
-
-      {/* Кнопка для заброса удочки */}
-      <div style={{ position: 'absolute', bottom: 100, left: 20 }}>
-        <button 
-          onClick={handleFishing}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            backgroundColor: 'blue',
-            color: 'white',
-            border: 'none',
-            fontSize: '16px',
-            cursor: 'pointer'
-          }}
-        >
-          Забросить-3
-        </button>
-      </div>
-    </div>
+      ))}
+      <FollowCamera
+        playerPosition={playerPosition}
+        cameraRotation={cameraRotation}
+        height={cameraHeight}
+        distance={cameraDistance}
+      />
+      <Joystick
+        size={100}
+        sticky={false}
+        baseColor="gray"
+        stickColor="black"
+        onMove={handleMove}
+        onStop={handleStop}
+      />
+    </Canvas>
   );
 };
 

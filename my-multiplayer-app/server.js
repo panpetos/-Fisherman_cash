@@ -38,8 +38,11 @@ io.on('connection', (socket) => {
     animationName: 'St'
   };
 
+  // Отправляем текущие данные всех игроков новому клиенту
+  socket.emit('updatePlayers', Object.values(players));
+
   // Обновляем данные игроков для всех клиентов
-  io.emit('updatePlayers', Object.values(players));
+  socket.broadcast.emit('updatePlayers', Object.values(players));
 
   // Обработка движения игрока
   socket.on('playerMove', (data) => {
@@ -61,7 +64,6 @@ io.on('connection', (socket) => {
     delete players[socket.id];
     io.emit('updatePlayers', Object.values(players));
     console.log('Player disconnected:', socket.id);
-    console.log('Current players:', Object.values(players));
   });
 });
 
