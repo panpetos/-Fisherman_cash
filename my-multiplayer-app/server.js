@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const socketIo = require('socket.io');
 const cors = require('cors');
+const { v4: uuidv4 } = require('uuid'); // Для генерации уникальных ID
 
 // Подгружаем SSL-сертификаты
 const privateKey = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/privkey.pem', 'utf8');
@@ -18,7 +19,6 @@ const io = socketIo(server, {
   }
 });
 
-// Настройка CORS для всех маршрутов
 app.use(cors({
   origin: ['https://eleonhrcenter.com'],
   methods: ['GET', 'POST'],
@@ -30,19 +30,20 @@ const players = {}; // Хранение данных о всех игроках
 io.on('connection', (socket) => {
   console.log('New client connected', socket.id);
 
-  // Добавляем нового игрока
+  // Генерируем уникальный ID для игрока
+  const playerId = uuidv4();
   players[socket.id] = {
-    id: socket.id,
+    id: playerId,
     position: [0, 0, 0],
     rotation: 0,
     animationName: 'St'
   };
 
-  // Отправляем текущие данные всех игроков новому клиенту
-  socket.emit('updatePlayers', Object.values(players));
+  // Отправляем уникальный ID клиенту
+  socket.emit('playerId', playerId);
 
   // Обновляем данные игроков для всех клиентов
-  socket.broadcast.emit('updatePlayers', Object.values(players));
+  io.emit('updatePlayers', Object.values(players));
 
   // Обработка движения игрока
   socket.on('playerMove', (data) => {
@@ -63,11 +64,9 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     delete players[socket.id];
     io.emit('updatePlayers', Object.values(players));
-    console.log('Player disconnected:', socket.id);
   });
 });
 
-// Запускаем сервер на порту 5000 через HTTPS
 server.listen(5000, () => {
   console.log('Server is running on https://brandingsite.store:5000');
 });
