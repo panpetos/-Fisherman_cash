@@ -201,15 +201,13 @@ const App = () => {
         
         {/* Другие игроки */}
         {players.map((player) => (
-          player.id !== socket.id && (
-            <Player
-              key={player.id}
-              id={player.id}
-              position={player.position}
-              rotation={player.rotation}
-              animationName={player.animationName}
-            />
-          )
+          <Player
+            key={player.id}
+            id={player.id}
+            position={player.position}
+            rotation={player.rotation}
+            animationName={player.animationName}
+          />
         ))}
       </Canvas>
 
