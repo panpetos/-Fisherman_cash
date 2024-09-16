@@ -248,7 +248,7 @@ const App = () => {
             cursor: 'pointer'
           }}
         >
-          Забросить
+          Забросить-1
         </button>
       </div>
     </div>
@@ -256,3 +256,4 @@ const App = () => {
 };
 
 export default App;
+
