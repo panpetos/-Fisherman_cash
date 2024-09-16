@@ -40,11 +40,24 @@ const Player = ({ id, position, rotation, animationName }) => {
   );
 };
 
-// Компонент для камеры от третьего лица
-const FollowCamera = ({ playerPosition, cameraRotation }) => {
+// Компонент для камеры от третьего лица с вращением вокруг персонажа
+const FollowCamera = ({ playerPosition, cameraRotation, setCameraRotation }) => {
   const { camera } = useThree();
   const distance = 5;
   const height = 2;
+  
+  // Обрабатываем движение мыши для вращения камеры
+  const handleMouseMove = (event) => {
+    const rotationSpeed = 0.005;
+    setCameraRotation((prevRotation) => prevRotation + event.movementX * rotationSpeed);
+  };
+
+  useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
 
   useFrame(() => {
     if (camera) {
@@ -171,7 +184,7 @@ const App = () => {
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
+        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} setCameraRotation={setCameraRotation} />
 
         {/* Собственная модель игрока */}
         <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
