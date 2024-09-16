@@ -9,11 +9,11 @@ import { Joystick } from 'react-joystick-component';
 const socket = io('https://brandingsite.store:5000');
 
 // Компонент для загрузки и отображения модели игрока
-const Player = ({ id, position, rotation, animationName }) => {
+const Player = ({ id, position, rotation, animationName, isCurrentPlayer }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions, mixer } = useAnimations(animations, group);
-  
+  const { actions } = useAnimations(animations, group);
+
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
@@ -30,10 +30,10 @@ const Player = ({ id, position, rotation, animationName }) => {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
     }
-  });
+  }, [position, rotation]);
 
   return (
-    <group ref={group}>
+    <group ref={group} visible={isCurrentPlayer}>
       <primitive object={scene} />
     </group>
   );
@@ -195,7 +195,7 @@ const App = () => {
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
         {/* Собственная модель игрока */}
-        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
+        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} isCurrentPlayer={true} />
 
         <TexturedFloor />
         
@@ -207,6 +207,7 @@ const App = () => {
             position={player.position}
             rotation={player.rotation}
             animationName={player.animationName}
+            isCurrentPlayer={false} // Другие игроки
           />
         ))}
       </Canvas>
