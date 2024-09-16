@@ -9,7 +9,7 @@ import { Joystick } from 'react-joystick-component';
 const socket = io('https://brandingsite.store:5000');
 
 // Компонент для загрузки и отображения модели игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions, mixer } = useAnimations(animations, group);
@@ -40,24 +40,18 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   );
 };
 
-// Компонент для камеры от третьего лица с поддержкой свайпа
-const FollowCamera = ({ playerPosition, cameraRotation, isRunning }) => {
+// Компонент для камеры от третьего лица
+const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
-  const [offsetRotation, setOffsetRotation] = useState(0);
-  const distance = isRunning ? 8 : 5; // Камера отодвигается при беге
-  const height = isRunning ? 3 : 2;   // Камера поднимается выше при беге
-
-  const handleSwipe = (e) => {
-    const deltaX = e.movementX || e.touches[0].clientX - e.touches[1]?.clientX || 0;
-    setOffsetRotation((prev) => prev + deltaX * 0.01);
-  };
+  const distance = 5;
+  const height = 2;
 
   useFrame(() => {
     if (camera) {
       const offset = new Vector3(
-        -Math.sin(cameraRotation + offsetRotation) * distance,
+        -Math.sin(cameraRotation) * distance,
         height,
-        Math.cos(cameraRotation + offsetRotation) * distance
+        Math.cos(cameraRotation) * distance
       );
 
       const targetPosition = new Vector3(...playerPosition).add(offset);
@@ -66,13 +60,7 @@ const FollowCamera = ({ playerPosition, cameraRotation, isRunning }) => {
     }
   });
 
-  return (
-    <div 
-      onMouseMove={handleSwipe} 
-      onTouchMove={handleSwipe} 
-      style={{ position: 'absolute', width: '100vw', height: '100vh' }} 
-    />
-  );
+  return null;
 };
 
 // Компонент для пола
@@ -94,7 +82,6 @@ const App = () => {
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
-  const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -119,47 +106,48 @@ const App = () => {
   const handleMove = (event) => {
     const { x, y } = event;
     const movementSpeed = 0.2;
-    const threshold = 0.1; // Минимальный порог для движения
 
-    if (Math.abs(x) > threshold || Math.abs(y) > threshold) {
-      const moveDirection = new Vector3(
-        Math.sin(cameraRotation),
-        0,
-        Math.cos(cameraRotation)
-      ).normalize();
+    const moveDirection = new Vector3(
+      Math.sin(cameraRotation),
+      0,
+      Math.cos(cameraRotation)
+    ).normalize();
 
-      const rightVector = new Vector3(
-        Math.sin(cameraRotation + Math.PI / 2),
-        0,
-        Math.cos(cameraRotation + Math.PI / 2)
-      ).normalize();
+    const rightVector = new Vector3(
+      Math.sin(cameraRotation + Math.PI / 2),
+      0,
+      Math.cos(cameraRotation + Math.PI / 2)
+    ).normalize();
 
-      const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
-      const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
+    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
-      const newPosition = new Vector3(
-        playerPosition[0] + forwardMovement.x + rightMovement.x,
-        playerPosition[1],
-        playerPosition[2] + forwardMovement.z + rightMovement.z
-      );
+    const newPosition = new Vector3(
+      playerPosition[0] + forwardMovement.x + rightMovement.x,
+      playerPosition[1],
+      playerPosition[2] + forwardMovement.z + rightMovement.z
+    );
 
-      setPlayerPosition(newPosition.toArray());
+    setPlayerPosition(newPosition.toArray());
+
+    if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setIsRunning(true);
       setPlayerRotation(Math.atan2(y, x) + 1.5); 
-
-      socket.emit('playerMove', {
-        id: socket.id,
-        position: newPosition.toArray(),
-        rotation: Math.atan2(y, x) + 1.5,
-        animationName: 'Run',
-      });
+    } else {
+      setAnimationName('St');
     }
+
+    // Отправляем данные движения на сервер
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: newPosition.toArray(),
+      rotation: Math.atan2(y, x) + 1.5,
+      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+    });
   };
 
   const handleStop = () => {
     setAnimationName('St');
-    setIsRunning(false);
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -170,7 +158,6 @@ const App = () => {
 
   const handleFishing = () => {
     setAnimationName('Fs_2');
-    setIsRunning(false);
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -184,29 +171,24 @@ const App = () => {
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} isRunning={isRunning} />
+        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
 
         {/* Собственная модель игрока */}
-        <Player 
-          id={socket.id} 
-          position={playerPosition} 
-          rotation={playerRotation} 
-          animationName={animationName} 
-          isLocalPlayer 
-        />
+        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
 
         <TexturedFloor />
         
         {/* Другие игроки */}
         {players.map((player) => (
-          <Player
-            key={player.id}
-            id={player.id}
-            position={player.position}
-            rotation={player.rotation}
-            animationName={player.animationName}
-            isLocalPlayer={player.id === socket.id}
-          />
+          player.id !== socket.id && (
+            <Player
+              key={player.id}
+              id={player.id}
+              position={player.position}
+              rotation={player.rotation}
+              animationName={player.animationName}
+            />
+          )
         ))}
       </Canvas>
 
@@ -244,4 +226,3 @@ const App = () => {
 };
 
 export default App;
-
