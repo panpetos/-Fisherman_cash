@@ -72,9 +72,14 @@ const TexturedFloor = () => {
 
 // Функция для логирования анимаций всех игроков
 const logPlayerAnimations = (players) => {
-  const animations = Object.values(players).map(player => player.animationName);
+  const animations = Object.values(players).map(player => ({
+    animationName: player.animationName,
+    position: player.position
+  }));
   console.log(`Количество анимаций: ${animations.length}`);
-  console.log(`Анимации: ${animations.join(', ')}`);
+  animations.forEach(({ animationName, position }) => {
+    console.log(`Анимация: ${animationName}, Координаты: x=${position[0]}, y=${position[1]}, z=${position[2]}`);
+  });
 };
 
 // Основной компонент приложения
@@ -211,62 +216,62 @@ const App = () => {
   if (isLoading || !modelsLoaded) {
     return (
       <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-        <h1>Загрузка...</h1>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-      <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera 
-          playerPosition={playerPosition} 
-          cameraRotation={cameraRotation} 
-          cameraTargetRotation={cameraTargetRotation} 
-          isPlayerMoving={isPlayerMoving} 
-        />
-        {Object.keys(players).map((id) => (
-          <Player 
-            key={id}
-            id={id}
-            position={players[id].position} 
-            rotation={players[id].rotation} 
-            animationName={players[id].animationName} 
-            isLocalPlayer={id === socket.id}
-          />
-        ))}
-        <TexturedFloor />
-      </Canvas>
-
-      {/* Правый джойстик для движения игрока */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
-        />
-      </div>
-
-      {/* Кнопка для рыбалки */}
-      <button 
-        onClick={handleFishing} 
-        style={{
-          position: 'absolute', 
-          bottom: 20, 
-          left: '50%', 
-          transform: 'translateX(-50%)', 
-          padding: '10px 20px', 
-          fontSize: '16px'
-        }}
-      >
-        Забросить-1
-      </button>
+      <h1>Загрузка...</h1>
     </div>
   );
+}
+
+return (
+  <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+    <Canvas>
+      <ambientLight />
+      <pointLight position={[10, 10, 10]} />
+      <FollowCamera 
+        playerPosition={playerPosition} 
+        cameraRotation={cameraRotation} 
+        cameraTargetRotation={cameraTargetRotation} 
+        isPlayerMoving={isPlayerMoving} 
+      />
+      {Object.keys(players).map((id) => (
+        <Player 
+          key={id}
+          id={id}
+          position={players[id].position} 
+          rotation={players[id].rotation} 
+          animationName={players[id].animationName} 
+          isLocalPlayer={id === socket.id}
+        />
+      ))}
+      <TexturedFloor />
+    </Canvas>
+
+    {/* Правый джойстик для движения игрока */}
+    <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
+      <Joystick 
+        size={80} 
+        baseColor="gray" 
+        stickColor="black" 
+        move={handleMove} 
+        stop={handleStop} 
+      />
+    </div>
+
+    {/* Кнопка для рыбалки */}
+    <button 
+      onClick={handleFishing} 
+      style={{
+        position: 'absolute', 
+        bottom: 20, 
+        left: '50%', 
+        transform: 'translateX(-50%)', 
+        padding: '10px 20px', 
+        fontSize: '16px'
+      }}
+    >
+      Забросить
+    </button>
+  </div>
+);
 };
 
 export default App;
