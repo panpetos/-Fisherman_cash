@@ -64,6 +64,13 @@ const TexturedFloor = () => {
   </mesh>;
 };
 
+// Функция для логирования анимаций всех игроков
+const logPlayerAnimations = (players) => {
+  const animations = Object.values(players).map(player => player.animationName);
+  console.log(`Количество анимаций: ${animations.length}`);
+  console.log(`Анимации: ${animations.join(', ')}`);
+};
+
 // Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
@@ -89,6 +96,7 @@ const App = () => {
     socket.on('updatePlayers', (updatedPlayers) => {
       console.log('updatePlayers', updatedPlayers); // Лог для отслеживания обновлений игроков
       setPlayers(updatedPlayers);
+      logPlayerAnimations(updatedPlayers); // Логируем анимации игроков
     });
     socket.on('initPlayer', (player, allPlayers) => {
       console.log('initPlayer', player, allPlayers); // Лог для отслеживания инициализации игрока
@@ -98,6 +106,7 @@ const App = () => {
       setAnimationName(player.animationName);
       setModelsLoaded(true); // Модели загружены
       setIsLoading(false); // Скрываем предзагрузку
+      logPlayerAnimations(allPlayers); // Логируем анимации игроков
     });
 
     socket.emit('requestPlayers');
@@ -248,7 +257,7 @@ const App = () => {
           fontSize: '16px'
         }}
       >
-        Забросить
+        Забросить33
       </button>
     </div>
   );
