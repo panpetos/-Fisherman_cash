@@ -1,3 +1,4 @@
+// App.js
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
@@ -5,33 +6,23 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-let socket; // Переменная для сокета
+let socket;
 
-// Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+const playerModel = useGLTF('/models/Player.glb');
+
+const Player = ({ id, position, rotation, animationName, isLocalPlayer, localPlayerId }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
+  const { scene, animations } = playerModel;
+  const clonedScene = scene.clone();
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
     const action = actions[animationName];
     if (action) {
-      const tracks = action._clip.tracks;
-      const validTracks = tracks.filter(track => {
-        const nodeName = track.name.split('.')[0];
-        return group.current.getObjectByName(nodeName);
-      });
-
-      if (validTracks.length === tracks.length) {
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      } else {
-        console.warn(`Some tracks are invalid for animation ${animationName} of player ${id}`);
-      }
-    } else {
-      console.warn(`Animation ${animationName} not found for player ${id}`);
+      action.reset().fadeIn(0.5).play();
+      return () => action.fadeOut(0.5).stop();
     }
-  }, [animationName, actions, id]);
+  }, [animationName, actions]);
 
   useEffect(() => {
     if (group.current) {
@@ -42,17 +33,16 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   return (
     <group ref={group}>
-      <primitive object={scene} />
+      <primitive object={clonedScene} />
     </group>
   );
 };
 
-// Компонент камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
   const distance = 10;
   const height = 5;
-  const smoothFactor = 0.05; // Уменьшил smoothFactor для более плавного движения
+  const smoothFactor = 0.05;
 
   useFrame(() => {
     if (camera) {
@@ -71,28 +61,16 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   return null;
 };
 
-// Компонент пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  return <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
-    <planeGeometry args={[100, 100]} />
-    <meshStandardMaterial map={texture} />
-  </mesh>;
+  return (
+    <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
+      <planeGeometry args={[100, 100]} />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  );
 };
 
-// Функция для логирования анимаций всех игроков
-const logPlayerAnimations = (players) => {
-  const animations = Object.values(players).map(player => ({
-    animationName: player.animationName,
-    position: player.position
-  }));
-  console.log(`Количество анимаций: ${animations.length}`);
-  animations.forEach(({ animationName, position }) => {
-    console.log(`Анимация: ${animationName}, Координаты: x=${position[0]}, y=${position[1]}, z=${position[2]}`);
-  });
-};
-
-// Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
@@ -112,22 +90,26 @@ const App = () => {
     setIsConnected(true);
     socket = io('https://brandingsite.store:5000');
 
-    socket.on('connect', () => console.log('Connected to server with id:', socket.id));
-    socket.on('disconnect', () => console.log('Disconnected from server'));
+    socket.on('connect', () => {
+      console.log('Connected to server with id:', socket.id);
+    });
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+
     socket.on('updatePlayers', (updatedPlayers) => {
       console.log('updatePlayers', updatedPlayers);
       setPlayers(updatedPlayers);
-      logPlayerAnimations(updatedPlayers);
     });
+
     socket.on('initPlayer', (player, allPlayers) => {
       console.log('initPlayer', player, allPlayers);
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
-      setModelsLoaded(true); // Модели загружены
-      setIsLoading(false); // Скрываем предзагрузку
-      logPlayerAnimations(allPlayers); // Логируем анимации игроков
+      setModelsLoaded(true);
+      setIsLoading(false);
     });
 
     socket.emit('requestPlayers');
@@ -141,7 +123,7 @@ const App = () => {
     const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
     const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
-    
+
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
     const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
@@ -150,7 +132,8 @@ const App = () => {
     setIsPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    // Отправляем обновления на сервер
+    setAnimationName('Run');
+
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -164,7 +147,6 @@ const App = () => {
     setAnimationName('St');
     setIsPlayerMoving(false);
 
-    // Обновление сервера
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -206,11 +188,11 @@ const App = () => {
 
   const handleFishing = () => {
     setAnimationName('Fs_2');
-    socket.emit('playerMove', { 
-      id: socket.id, 
-      position: playerPosition, 
-      rotation: playerRotation, 
-      animationName: 'Fs_2' 
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      rotation: playerRotation,
+      animationName: 'Fs_2'
     });
   };
 
@@ -236,45 +218,44 @@ const App = () => {
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
-        <FollowCamera 
-          playerPosition={playerPosition} 
-          cameraRotation={cameraRotation} 
-          cameraTargetRotation={cameraTargetRotation} 
-          isPlayerMoving={isPlayerMoving} 
+        <FollowCamera
+          playerPosition={playerPosition}
+          cameraRotation={cameraRotation}
+          cameraTargetRotation={cameraTargetRotation}
+          isPlayerMoving={isPlayerMoving}
         />
         {Object.keys(players).map((id) => (
-  <Player
-    key={id}
-    id={id}
-    position={players[id].position}
-    rotation={players[id].rotation}
-    animationName={players[id].animationName}
-    isLocalPlayer={id === socket.id}
-  />
-))}
+          <Player
+            key={id}
+            id={id}
+            position={players[id].position}
+            rotation={players[id].rotation}
+            animationName={players[id].animationName}
+            isLocalPlayer={id === socket.id}
+            localPlayerId={socket.id}
+          />
+        ))}
         <TexturedFloor />
       </Canvas>
 
-      {/* Правый джойстик для движения игрока */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
+        <Joystick
+          size={80}
+          baseColor="gray"
+          stickColor="black"
+          move={handleMove}
+          stop={handleStop}
         />
       </div>
 
-      {/* Кнопка для рыбалки */}
-      <button 
-        onClick={handleFishing} 
+      <button
+        onClick={handleFishing}
         style={{
-          position: 'absolute', 
-          bottom: 20, 
-          left: '50%', 
-          transform: 'translateX(-50%)', 
-          padding: '10px 20px', 
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '10px 20px',
           fontSize: '16px'
         }}
       >
