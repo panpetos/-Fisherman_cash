@@ -9,7 +9,7 @@ import { Joystick } from 'react-joystick-component';
 const socket = io('https://brandingsite.store:5000');
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
@@ -25,7 +25,11 @@ const Player = ({ id, position, rotation, animationName }) => {
     group.current?.rotation.set(0, rotation, 0);
   }, [position, rotation]);
 
-  return <group ref={group}><primitive object={scene} /></group>;
+  return (
+    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
+      <primitive object={scene} />
+    </group>
+  );
 };
 
 // Компонент камеры от третьего лица
@@ -189,6 +193,7 @@ const App = () => {
             position={players[id].position} 
             rotation={players[id].rotation} 
             animationName={players[id].animationName} 
+            isLocalPlayer={id === socket.id}
           />
         ))}
         <TexturedFloor />
@@ -217,7 +222,7 @@ const App = () => {
           fontSize: '16px'
         }}
       >
-        Забросить
+        Бросить
       </button>
     </div>
   );
