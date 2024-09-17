@@ -14,8 +14,8 @@ const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
     origin: ['https://eleonhrcenter.com'],
-    methods: ['GET', 'POST'],
-  },
+    methods: ['GET', 'POST']
+  }
 });
 
 const players = {}; // Хранение данных о всех игроках
@@ -28,12 +28,14 @@ io.on('connection', (socket) => {
     id: socket.id,
     position: [0, 0, 0],
     rotation: 0,
-    animationName: 'St',
+    animationName: 'St'
   };
 
-  // Отправляем текущий список игроков новому игроку и уведомляем всех о новом игроке
-  socket.emit('initPlayer', players[socket.id], Object.values(players)); // Инициализация нового игрока
-  socket.broadcast.emit('newPlayer', players[socket.id]); // Уведомляем других клиентов о новом игроке
+  // Отправляем текущий список игроков новому игроку
+  socket.emit('initPlayer', players[socket.id], Object.values(players)); // Первичная инициализация игрока
+
+  // Сообщаем всем остальным игрокам о новом подключившемся
+  socket.broadcast.emit('newPlayer', players[socket.id]);
 
   // Обработка движения игрока
   socket.on('playerMove', (data) => {
@@ -50,11 +52,11 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Обработка отключения игрока
+  // Удаляем игрока при отключении
   socket.on('disconnect', () => {
-    console.log('Client disconnected', socket.id);
     delete players[socket.id];
-    io.emit('removePlayer', socket.id); // Уведомляем других клиентов о выходе игрока
+    io.emit('removePlayer', socket.id); // Уведомление об удалении игрока
+    console.log('Client disconnected', socket.id);
   });
 });
 

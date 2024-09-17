@@ -5,7 +5,7 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу
+// Подключение к серверу
 const socket = io('https://brandingsite.store:5000');
 
 // Компонент игрока
