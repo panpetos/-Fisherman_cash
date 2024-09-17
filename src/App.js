@@ -74,23 +74,30 @@ const App = () => {
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState({});
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
 
   useEffect(() => {
-    // При подключении, запросить текущих игроков
-    socket.emit('requestPlayers');
-
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
+    });
+    socket.on('initPlayer', (player, allPlayers) => {
+      setPlayers(allPlayers);
+      setPlayerPosition(player.position);
+      setPlayerRotation(player.rotation);
+      setAnimationName(player.animationName);
+      setIsLoading(false);
     });
 
     return () => {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('updatePlayers');
+      socket.off('initPlayer');
     };
   }, []);
 
@@ -175,6 +182,29 @@ const App = () => {
     });
   };
 
+  const handleConnect = () => {
+    setIsLoading(true);
+    setIsConnected(true);
+    socket.emit('requestPlayers');
+  };
+
+  if (!isConnected) {
+    return (
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+        <h1>FunFishing</h1>
+        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+        <h1>Загрузка...</h1>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
       <Canvas>
@@ -222,7 +252,7 @@ const App = () => {
           fontSize: '16px'
         }}
       >
-        Бросить
+        Забрось
       </button>
     </div>
   );
