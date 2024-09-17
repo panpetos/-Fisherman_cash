@@ -35,6 +35,9 @@ io.on('connection', (socket) => {
   socket.emit('initPlayer', players[socket.id], Object.values(players)); // Инициализация нового игрока
   socket.broadcast.emit('newPlayer', players[socket.id]); // Уведомляем других клиентов о новом игроке
 
+  // Обновляем данные для всех клиентов (включая нового игрока)
+  io.emit('updatePlayers', Object.values(players));
+
   // Обработка движения игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
@@ -55,6 +58,7 @@ io.on('connection', (socket) => {
     console.log('Client disconnected', socket.id);
     delete players[socket.id];
     io.emit('removePlayer', socket.id); // Уведомляем других клиентов о выходе игрока
+    io.emit('updatePlayers', Object.values(players)); // Обновляем данные для всех клиентов
   });
 });
 

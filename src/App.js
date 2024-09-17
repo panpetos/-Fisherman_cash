@@ -97,18 +97,18 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
 
-  const handleConnect = () => {
-    setIsLoading(true);
-    setIsConnected(true);
+  useEffect(() => {
     socket = io('https://brandingsite.store:5000');
 
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
+
     socket.on('updatePlayers', (updatedPlayers) => {
       console.log('updatePlayers', updatedPlayers); // Лог для отслеживания обновлений игроков
       setPlayers(updatedPlayers);
       logPlayerAnimations(updatedPlayers); // Логируем анимации игроков
     });
+
     socket.on('initPlayer', (player, allPlayers) => {
       console.log('initPlayer', player, allPlayers); // Лог для отслеживания инициализации игрока
       setPlayers(allPlayers);
@@ -120,8 +120,10 @@ const App = () => {
       logPlayerAnimations(allPlayers); // Логируем анимации игроков
     });
 
-    socket.emit('requestPlayers');
-  };
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
@@ -140,138 +142,139 @@ const App = () => {
     setIsPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    // Отправляем обновления на сервер
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: newPosition.toArray(),
-      rotation: directionAngle,
-      animationName: 'Run'
-    });
-  };
-
-  const handleStop = () => {
-    movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('St');
-    setIsPlayerMoving(false);
-
-    // Обновление сервера
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'St'
-    });
-
-    stopTimeoutRef.current = setTimeout(() => {
-      const reverseAngle = cameraRotation + Math.PI;
-      setCameraTargetRotation(reverseAngle);
-    }, 1000);
-  };
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
-        handleMove(movementDirectionRef.current);
+        // Отправляем обновления на сервер
+        socket.emit('playerMove', {
+          id: socket.id,
+          position: newPosition.toArray(),
+          rotation: directionAngle,
+          animationName: 'Run'
+        });
+      };
+    
+      const handleStop = () => {
+        movementDirectionRef.current = { x: 0, y: 0 };
+        setAnimationName('St');
+        setIsPlayerMoving(false);
+    
+        // Обновление сервера
+        socket.emit('playerMove', {
+          id: socket.id,
+          position: playerPosition,
+          rotation: playerRotation,
+          animationName: 'St'
+        });
+    
+        stopTimeoutRef.current = setTimeout(() => {
+          const reverseAngle = cameraRotation + Math.PI;
+          setCameraTargetRotation(reverseAngle);
+        }, 1000);
+      };
+    
+      useEffect(() => {
+        const interval = setInterval(() => {
+          if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
+            handleMove(movementDirectionRef.current);
+          }
+        }, 50);
+    
+        return () => clearInterval(interval);
+      }, [cameraRotation, playerPosition]);
+    
+      useEffect(() => {
+        const updateCameraRotation = () => {
+          setCameraRotation(prev => {
+            const deltaRotation = cameraTargetRotation - prev;
+            const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
+            const newRotation = prev + normalizedDelta * 0.1;
+            return newRotation % (2 * Math.PI);
+          });
+        };
+    
+        if (!isPlayerMoving) {
+          const interval = setInterval(updateCameraRotation, 100);
+          return () => clearInterval(interval);
+        }
+      }, [isPlayerMoving, cameraTargetRotation]);
+    
+      const handleFishing = () => {
+        setAnimationName('Fs_2');
+        socket.emit('playerMove', { 
+          id: socket.id, 
+          position: playerPosition, 
+          rotation: playerRotation, 
+          animationName: 'Fs_2' 
+        });
+      };
+    
+      if (!isConnected) {
+        return (
+          <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+            <h1>FunFishing</h1>
+            <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
+          </div>
+        );
       }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [cameraRotation, playerPosition]);
-
-  useEffect(() => {
-    const updateCameraRotation = () => {
-      setCameraRotation(prev => {
-        const deltaRotation = cameraTargetRotation - prev;
-        const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
-        const newRotation = prev + normalizedDelta * 0.1;
-        return newRotation % (2 * Math.PI);
-      });
+    
+      if (isLoading || !modelsLoaded) {
+        return (
+          <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+            <h1>Загрузка...</h1>
+          </div>
+        );
+      }
+    
+      return (
+        <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+          <Canvas>
+            <ambientLight />
+            <pointLight position={[10, 10, 10]} />
+            <FollowCamera 
+              playerPosition={playerPosition} 
+              cameraRotation={cameraRotation} 
+              cameraTargetRotation={cameraTargetRotation} 
+              isPlayerMoving={isPlayerMoving} 
+            />
+            {Object.keys(players).map((id) => (
+              <Player 
+                key={id}
+                id={id}
+                position={players[id].position} 
+                rotation={players[id].rotation} 
+                animationName={players[id].animationName} 
+                isLocalPlayer={id === socket.id}
+              />
+            ))}
+            <TexturedFloor />
+          </Canvas>
+    
+          {/* Правый джойстик для движения игрока */}
+          <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
+            <Joystick 
+              size={80} 
+              baseColor="gray" 
+              stickColor="black" 
+              move={handleMove} 
+              stop={handleStop} 
+            />
+          </div>
+    
+          {/* Кнопка для рыбалки */}
+          <button 
+            onClick={handleFishing} 
+            style={{
+              position: 'absolute', 
+              bottom: 20, 
+              left: '50%', 
+              transform: 'translateX(-50%)', 
+              padding: '10px 20px', 
+              fontSize: '16px'
+            }}
+          >
+            Забросить
+          </button>
+        </div>
+      );
     };
-
-    if (!isPlayerMoving) {
-      const interval = setInterval(updateCameraRotation, 100);
-      return () => clearInterval(interval);
-    }
-  }, [isPlayerMoving, cameraTargetRotation]);
-
-  const handleFishing = () => {
-    setAnimationName('Fs_2');
-    socket.emit('playerMove', { 
-      id: socket.id, 
-      position: playerPosition, 
-      rotation: playerRotation, 
-      animationName: 'Fs_2' 
-    });
-  };
-
-  if (!isConnected) {
-    return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-        <h1>FunFishing</h1>
-        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
-      </div>
-    );
-  }
-
-  if (isLoading || !modelsLoaded) {
-    return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-        <h1>Загрузка...</h1>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-      <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera 
-          playerPosition={playerPosition} 
-          cameraRotation={cameraRotation} 
-          cameraTargetRotation={cameraTargetRotation} 
-          isPlayerMoving={isPlayerMoving} 
-        />
-        {Object.keys(players).map((id) => (
-          <Player 
-            key={id}
-            id={id}
-            position={players[id].position} 
-            rotation={players[id].rotation} 
-            animationName={players[id].animationName} 
-            isLocalPlayer={id === socket.id}
-          />
-        ))}
-        <TexturedFloor />
-      </Canvas>
-
-      {/* Правый джойстик для движения игрока */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
-        />
-      </div>
-
-      {/* Кнопка для рыбалки */}
-      <button 
-        onClick={handleFishing} 
-        style={{
-          position: 'absolute', 
-          bottom: 20, 
-          left: '50%', 
-          transform: 'translateX(-50%)', 
-          padding: '10px 20px', 
-          fontSize: '16px'
-        }}
-      >
-        Забросить
-      </button>
-    </div>
-  );
-};
-
-export default App;
+    
+    export default App;
+    
