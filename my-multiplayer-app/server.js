@@ -32,10 +32,10 @@ io.on('connection', (socket) => {
   };
 
   // Отправляем текущий список игроков новому игроку
-  socket.emit('updatePlayers', Object.values(players));
+  socket.emit('initPlayer', players[socket.id], Object.values(players)); // Первичная инициализация игрока
 
-  // Обновляем данные игроков для всех клиентов
-  socket.broadcast.emit('updatePlayers', Object.values(players));
+  // Сообщаем всем остальным игрокам о новом подключившемся
+  socket.broadcast.emit('newPlayer', players[socket.id]);
 
   // Обработка движения игрока
   socket.on('playerMove', (data) => {
@@ -47,7 +47,7 @@ io.on('connection', (socket) => {
         animationName: data.animationName,
       };
 
-      // Обновляем данные игроков для всех клиентов
+      // Обновляем данные для всех клиентов (включая игрока)
       io.emit('updatePlayers', Object.values(players));
     }
   });
@@ -55,7 +55,7 @@ io.on('connection', (socket) => {
   // Удаляем игрока при отключении
   socket.on('disconnect', () => {
     delete players[socket.id];
-    io.emit('updatePlayers', Object.values(players));
+    io.emit('removePlayer', socket.id); // Уведомление об удалении игрока
     console.log('Client disconnected', socket.id);
   });
 });
