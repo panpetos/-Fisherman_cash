@@ -87,9 +87,11 @@ const App = () => {
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
     socket.on('updatePlayers', (updatedPlayers) => {
+      console.log('updatePlayers', updatedPlayers); // Лог для отслеживания обновлений игроков
       setPlayers(updatedPlayers);
     });
     socket.on('initPlayer', (player, allPlayers) => {
+      console.log('initPlayer', player, allPlayers); // Лог для отслеживания инициализации игрока
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
@@ -253,4 +255,3 @@ const App = () => {
 };
 
 export default App;
-
