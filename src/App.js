@@ -33,7 +33,7 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   const { camera } = useThree();
   const distance = 10;
   const height = 5;
-  const smoothFactor = 0.05;  // Плавность поворота камеры
+  const smoothFactor = 0.05;
 
   useFrame(() => {
     if (camera) {
@@ -116,7 +116,7 @@ const App = () => {
         const reverseAngle = cameraRotation + Math.PI;
         setCameraTargetRotation(reverseAngle);
       }
-    }, 2000);  // Интервал для разворота камеры
+    }, 2000);
   };
 
   useEffect(() => {
@@ -134,7 +134,7 @@ const App = () => {
       setCameraRotation(prev => {
         const deltaRotation = cameraTargetRotation - prev;
         const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
-        const newRotation = prev + normalizedDelta * 0.05;  // Плавность вращения камеры
+        const newRotation = prev + normalizedDelta * 0.05;
         return newRotation % (2 * Math.PI);
       });
     };
@@ -149,6 +149,10 @@ const App = () => {
     setAnimationName('Fs_2');
     socket.emit('playerMove', { id: socket.id, position: playerPosition, rotation: playerRotation, animationName: 'Fs_2' });
   };
+
+  useEffect(() => {
+    socket.emit('playerMove', { id: socket.id, position: playerPosition, rotation: playerRotation, animationName });
+  }, [playerPosition, playerRotation, animationName]);
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
