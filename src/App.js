@@ -17,11 +17,10 @@ const Player = ({ id, position, rotation, animationName }) => {
   useEffect(() => {
     if (actions && animationName) {
       const action = actions[animationName];
-      action.reset().fadeIn(0.5).play();
-
-      return () => {
-        action.fadeOut(0.5).stop();
-      };
+      if (action) {
+        action.reset().fadeIn(0.5).play();
+        return () => action.fadeOut(0.5).stop();
+      }
     }
   }, [animationName, actions]);
 
