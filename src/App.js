@@ -33,7 +33,7 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   const { camera } = useThree();
   const distance = 10;
   const height = 5;
-  const smoothFactor = 0.1;
+  const smoothFactor = 0.05; // Уменьшил smoothFactor для более плавного движения
 
   useFrame(() => {
     if (camera) {
@@ -79,8 +79,6 @@ const App = () => {
 
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
-
-    // Обновление списка игроков
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
@@ -184,8 +182,6 @@ const App = () => {
           cameraTargetRotation={cameraTargetRotation} 
           isPlayerMoving={isPlayerMoving} 
         />
-        
-        {/* Рендерим всех игроков */}
         {Object.keys(players).map((id) => (
           <Player 
             key={id}
@@ -195,7 +191,6 @@ const App = () => {
             animationName={players[id].animationName} 
           />
         ))}
-
         <TexturedFloor />
       </Canvas>
 
