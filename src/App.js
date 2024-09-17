@@ -15,13 +15,19 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   useEffect(() => {
     const action = actions[animationName];
-    action?.reset().fadeIn(0.5).play();
-    return () => action?.fadeOut(0.5).stop();
-  }, [animationName, actions]);
+    if (action) {
+      action.reset().fadeIn(0.5).play();
+      return () => action.fadeOut(0.5).stop();
+    } else {
+      console.warn(`Animation ${animationName} not found for player ${id}`);
+    }
+  }, [animationName, actions, id]);
 
   useEffect(() => {
-    group.current?.position.set(...position);
-    group.current?.rotation.set(0, rotation, 0);
+    if (group.current) {
+      group.current.position.set(...position);
+      group.current.rotation.set(0, rotation, 0);
+    }
   }, [position, rotation]);
 
   return (
@@ -257,7 +263,7 @@ const App = () => {
           fontSize: '16px'
         }}
       >
-        Забросить33
+        Забросить-1
       </button>
     </div>
   );
