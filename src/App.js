@@ -1,5 +1,5 @@
 // App.js
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
 import { Vector3 } from 'three';
@@ -8,12 +8,9 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const playerModel = useGLTF('/models/Player.glb');
-
-const Player = ({ id, position, rotation, animationName, isLocalPlayer, localPlayerId }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer, localPlayerId, model }) => {
   const group = useRef();
-  const { scene, animations } = playerModel;
-  const clonedScene = scene.clone();
+  const { scene, animations } = model;
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -33,7 +30,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, localPla
 
   return (
     <group ref={group}>
-      <primitive object={clonedScene} />
+      <primitive object={scene.clone()} />
     </group>
   );
 };
@@ -81,9 +78,10 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
+
+  const model = useGLTF('/models/Player.glb');
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -108,7 +106,6 @@ const App = () => {
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
-      setModelsLoaded(true);
       setIsLoading(false);
     });
 
@@ -205,7 +202,7 @@ const App = () => {
     );
   }
 
-  if (isLoading || !modelsLoaded) {
+  if (isLoading) {
     return (
       <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
         <h1>Загрузка...</h1>
@@ -216,26 +213,29 @@ const App = () => {
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
       <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera
-          playerPosition={playerPosition}
-          cameraRotation={cameraRotation}
-          cameraTargetRotation={cameraTargetRotation}
-          isPlayerMoving={isPlayerMoving}
-        />
-        {Object.keys(players).map((id) => (
-          <Player
-            key={id}
-            id={id}
-            position={players[id].position}
-            rotation={players[id].rotation}
-            animationName={players[id].animationName}
-            isLocalPlayer={id === socket.id}
-            localPlayerId={socket.id}
+        <Suspense fallback={null}>
+          <ambientLight />
+          <pointLight position={[10, 10, 10]} />
+          <FollowCamera
+            playerPosition={playerPosition}
+            cameraRotation={cameraRotation}
+            cameraTargetRotation={cameraTargetRotation}
+            isPlayerMoving={isPlayerMoving}
           />
-        ))}
-        <TexturedFloor />
+          {Object.keys(players).map((id) => (
+            <Player
+              key={id}
+              id={id}
+              position={players[id].position}
+              rotation={players[id].rotation}
+              animationName={players[id].animationName}
+              isLocalPlayer={id === socket.id}
+              localPlayerId={socket.id}
+              model={model}
+            />
+          ))}
+          <TexturedFloor />
+        </Suspense>
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
