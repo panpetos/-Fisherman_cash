@@ -5,7 +5,7 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключение к серверу
+// Подключаемся к серверу
 const socket = io('https://brandingsite.store:5000');
 
 // Компонент игрока
@@ -68,15 +68,22 @@ const App = () => {
   const [cameraRotation, setCameraRotation] = useState(0);
   const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
-  const [players, setPlayers] = useState([]);
+  const [players, setPlayers] = useState({});
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
 
   useEffect(() => {
+    // При подключении, запросить текущих игроков
+    socket.emit('requestPlayers');
+
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
-    socket.on('updatePlayers', setPlayers);
+
+    // Обновление списка игроков
+    socket.on('updatePlayers', (updatedPlayers) => {
+      setPlayers(updatedPlayers);
+    });
 
     return () => {
       socket.off('connect');
@@ -101,12 +108,29 @@ const App = () => {
     setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
+
+    // Отправляем обновления на сервер
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: newPosition.toArray(),
+      rotation: directionAngle,
+      animationName: 'Run'
+    });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setAnimationName('St');
     setIsPlayerMoving(false);
+
+    // Обновление сервера
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      rotation: playerRotation,
+      animationName: 'St'
+    });
+
     stopTimeoutRef.current = setTimeout(() => {
       const reverseAngle = cameraRotation + Math.PI;
       setCameraTargetRotation(reverseAngle);
@@ -141,7 +165,12 @@ const App = () => {
 
   const handleFishing = () => {
     setAnimationName('Fs_2');
-    socket.emit('playerMove', { id: socket.id, position: playerPosition, rotation: playerRotation, animationName: 'Fs_2' });
+    socket.emit('playerMove', { 
+      id: socket.id, 
+      position: playerPosition, 
+      rotation: playerRotation, 
+      animationName: 'Fs_2' 
+    });
   };
 
   return (
@@ -155,11 +184,19 @@ const App = () => {
           cameraTargetRotation={cameraTargetRotation} 
           isPlayerMoving={isPlayerMoving} 
         />
-        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
-        <TexturedFloor />
-        {players.map(player => player.id !== socket.id && (
-          <Player key={player.id} id={player.id} position={player.position} rotation={player.rotation} animationName={player.animationName} />
+        
+        {/* Рендерим всех игроков */}
+        {Object.keys(players).map((id) => (
+          <Player 
+            key={id}
+            id={id}
+            position={players[id].position} 
+            rotation={players[id].rotation} 
+            animationName={players[id].animationName} 
+          />
         ))}
+
+        <TexturedFloor />
       </Canvas>
 
       {/* Правый джойстик для движения игрока */}
