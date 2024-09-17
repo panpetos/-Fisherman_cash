@@ -77,7 +77,17 @@ const App = () => {
     // При подключении, запросить текущих игроков
     socket.emit('requestPlayers');
 
-    socket.on('connect', () => console.log('Connected to server with id:', socket.id));
+    socket.on('connect', () => {
+      console.log('Connected to server with id:', socket.id);
+      // Отправляем состояние игрока на сервер при подключении
+      socket.emit('playerMove', {
+        id: socket.id,
+        position: playerPosition,
+        rotation: playerRotation,
+        animationName: animationName
+      });
+    });
+
     socket.on('disconnect', () => console.log('Disconnected from server'));
 
     // Обновление списка игроков
@@ -90,7 +100,7 @@ const App = () => {
       socket.off('disconnect');
       socket.off('updatePlayers');
     };
-  }, []);
+  }, [playerPosition, playerRotation, animationName]);
 
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };

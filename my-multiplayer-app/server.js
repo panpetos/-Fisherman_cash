@@ -1,66 +1,43 @@
 const express = require('express');
-const https = require('https');
-const fs = require('fs');
+const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 
-// Подгружаем SSL-сертификаты
-const privateKey = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/privkey.pem', 'utf8');
-const certificate = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/fullchain.pem', 'utf8');
-const credentials = { key: privateKey, cert: certificate };
-
 const app = express();
-const server = https.createServer(credentials, app);
-const io = socketIo(server, {
-  cors: {
-    origin: ['https://eleonhrcenter.com'],
-    methods: ['GET', 'POST']
-  }
-});
+const server = http.createServer(app);
+const io = socketIo(server, { cors: { origin: '*' } });
 
-const players = {}; // Хранение данных о всех игроках
+app.use(cors());
+app.use(express.json());
+
+const players = {}; // Хранит состояние всех игроков
 
 io.on('connection', (socket) => {
-  console.log('New client connected', socket.id);
+  console.log('New client connected:', socket.id);
 
-  // Добавляем нового игрока
-  players[socket.id] = {
-    id: socket.id,
-    position: [0, 0, 0],
-    rotation: 0,
-    animationName: 'St'
-  };
-
-  // Отправляем текущий список игроков новому игроку
-  socket.emit('initPlayer', players[socket.id], Object.values(players)); // Первичная инициализация игрока
-
-  // Сообщаем всем остальным игрокам о новом подключившемся
-  socket.broadcast.emit('newPlayer', players[socket.id]);
-
-  // Обработка движения игрока
+  // Обновляем состояние игрока при его движении
   socket.on('playerMove', (data) => {
-    if (players[socket.id]) {
-      players[socket.id] = {
-        ...players[socket.id],
-        position: data.position,
-        rotation: data.rotation,
-        animationName: data.animationName,
-      };
-
-      // Обновляем данные для всех клиентов (включая игрока)
-      io.emit('updatePlayers', Object.values(players));
-    }
+    players[data.id] = {
+      position: data.position,
+      rotation: data.rotation,
+      animationName: data.animationName
+    };
+    io.emit('updatePlayers', players);
   });
 
-  // Удаляем игрока при отключении
+  // Запрашиваем текущее состояние всех игроков
+  socket.on('requestPlayers', () => {
+    socket.emit('updatePlayers', players);
+  });
+
   socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
     delete players[socket.id];
-    io.emit('removePlayer', socket.id); // Уведомление об удалении игрока
-    console.log('Client disconnected', socket.id);
+    io.emit('updatePlayers', players);
   });
 });
 
-// Запускаем сервер на порту 5000 через HTTPS
-server.listen(5000, () => {
-  console.log('Server is running on https://brandingsite.store:5000');
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
