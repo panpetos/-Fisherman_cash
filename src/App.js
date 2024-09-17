@@ -16,8 +16,18 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   useEffect(() => {
     const action = actions[animationName];
     if (action) {
-      action.reset().fadeIn(0.5).play();
-      return () => action.fadeOut(0.5).stop();
+      const tracks = action._clip.tracks;
+      const validTracks = tracks.filter(track => {
+        const nodeName = track.name.split('.')[0];
+        return group.current.getObjectByName(nodeName);
+      });
+
+      if (validTracks.length === tracks.length) {
+        action.reset().fadeIn(0.5).play();
+        return () => action.fadeOut(0.5).stop();
+      } else {
+        console.warn(`Some tracks are invalid for animation ${animationName} of player ${id}`);
+      }
     } else {
       console.warn(`Animation ${animationName} not found for player ${id}`);
     }
