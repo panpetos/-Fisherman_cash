@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
@@ -10,16 +9,27 @@ let socket;
 
 const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');  // useGLTF вызывается внутри компонента
+  const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
     const action = actions[animationName];
     if (action) {
-      action.reset().fadeIn(0.5).play();
-      return () => action.fadeOut(0.5).stop();
+      const validTracks = action._clip.tracks.filter(track => {
+        const nodeName = track.name.split('.')[0];
+        return group.current.getObjectByName(nodeName);
+      });
+      
+      if (validTracks.length === action._clip.tracks.length) {
+        action.reset().fadeIn(0.5).play();
+        return () => action.fadeOut(0.5).stop();
+      } else {
+        console.warn(`Some tracks are invalid for animation ${animationName} of player ${id}`);
+      }
+    } else {
+      console.warn(`Animation ${animationName} not found for player ${id}`);
     }
-  }, [animationName, actions]);
+  }, [animationName, actions, id]);
 
   useEffect(() => {
     if (group.current) {
@@ -255,7 +265,7 @@ const App = () => {
           fontSize: '16px'
         }}
       >
-        Забросить
+        Забросить7
       </button>
     </div>
   );
