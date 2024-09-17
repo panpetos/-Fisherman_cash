@@ -41,7 +41,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   }, [position, rotation]);
 
   return (
-    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
+    <group ref={group}>
       <primitive object={scene} />
     </group>
   );
@@ -115,12 +115,12 @@ const App = () => {
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
     socket.on('updatePlayers', (updatedPlayers) => {
-      console.log('updatePlayers', updatedPlayers); // Лог для отслеживания обновлений игроков
+      console.log('updatePlayers', updatedPlayers);
       setPlayers(updatedPlayers);
-      logPlayerAnimations(updatedPlayers); // Логируем анимации игроков
+      logPlayerAnimations(updatedPlayers);
     });
     socket.on('initPlayer', (player, allPlayers) => {
-      console.log('initPlayer', player, allPlayers); // Лог для отслеживания инициализации игрока
+      console.log('initPlayer', player, allPlayers);
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
@@ -243,15 +243,15 @@ const App = () => {
           isPlayerMoving={isPlayerMoving} 
         />
         {Object.keys(players).map((id) => (
-          <Player 
-            key={id}
-            id={id}
-            position={players[id].position} 
-            rotation={players[id].rotation} 
-            animationName={players[id].animationName} 
-            isLocalPlayer={id === socket.id}
-          />
-        ))}
+  <Player
+    key={id}
+    id={id}
+    position={players[id].position}
+    rotation={players[id].rotation}
+    animationName={players[id].animationName}
+    isLocalPlayer={id === socket.id}
+  />
+))}
         <TexturedFloor />
       </Canvas>
 

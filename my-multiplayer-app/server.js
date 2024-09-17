@@ -32,12 +32,11 @@ io.on('connection', (socket) => {
   };
 
   // Отправляем текущий список игроков новому игроку и уведомляем всех о новом игроке
-  socket.emit('initPlayer', players[socket.id], Object.values(players)); // Инициализация нового игрока
+  socket.emit('initPlayer', players[socket.id], players); // Инициализация нового игрока
   socket.broadcast.emit('newPlayer', players[socket.id]); // Уведомляем других клиентов о новом игроке
 
   // Обновляем данные для всех клиентов (включая нового игрока)
-  io.emit('updatePlayers', Object.values(players));
-
+  io.emit('updatePlayers', players);
   // Обработка движения игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
