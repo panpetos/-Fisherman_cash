@@ -14,7 +14,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
-    // Сбрасываем, запускаем и анимируем действия
+    // Проигрываем анимацию
     const action = actions[animationName];
     if (action) {
       action.reset().fadeIn(0.5).play();
@@ -93,16 +93,20 @@ const App = () => {
 
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
+
     socket.on('updatePlayers', (updatedPlayers) => {
+      // Обновляем всех игроков на клиенте
       setPlayers(updatedPlayers);
     });
+
     socket.on('initPlayer', (player, allPlayers) => {
+      // Инициализируем всех игроков при подключении
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
-      setModelsLoaded(true);
-      setIsLoading(false);
+      setModelsLoaded(true); // Модели загружены
+      setIsLoading(false); // Прекращаем отображать предзагрузку
     });
 
     socket.emit('requestPlayers');
@@ -191,54 +195,23 @@ const App = () => {
 
   if (!isConnected) {
     return (
-      <div
-        style={{
-          height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'url(/nebo.jpg)',
-          backgroundSize: 'cover',
-        }}
-      >
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
         <h1>FunFishing</h1>
-        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
-          Войти в общий сервер
-        </button>
+        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
       </div>
     );
   }
 
   if (isLoading || !modelsLoaded) {
     return (
-      <div
-        style={{
-          height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'url(/nebo.jpg)',
-          backgroundSize: 'cover',
-        }}
-      >
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
         <h1>Загрузка...</h1>
       </div>
     );
   }
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        width: '100vw',
-        position: 'relative',
-        backgroundImage: 'url(/nebo.jpg)',
-        backgroundSize: 'cover',
-      }}
-    >
+    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
@@ -262,7 +235,13 @@ const App = () => {
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+        <Joystick
+          size={80}
+          baseColor="gray"
+          stickColor="black"
+          move={handleMove}
+          stop={handleStop}
+        />
       </div>
 
       <button
@@ -276,7 +255,7 @@ const App = () => {
           fontSize: '16px',
         }}
       >
-        Забросить
+        Забросить :ъ
       </button>
     </div>
   );
