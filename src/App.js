@@ -19,17 +19,15 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   const [currentAnimation, setCurrentAnimation] = useState(null);
 
+  // Следим за загрузкой анимаций и проверяем, что объект загружен
   useEffect(() => {
-    if (animations[animationName]) {
+    if (animations[animationName] && animations[animationName].isObject3D) {
       const action = animations[animationName];
-      if (group.current) {
-        group.current.children[0].traverse((child) => {
-          if (child.isMesh) child.animations = action.animations;
-        });
-      }
       setCurrentAnimation(action);
+    } else {
+      console.error('Анимация не загружена или неверный формат:', animationName);
     }
-  }, [animationName]);
+  }, [animationName, animations]);
 
   // Привязываем положение игрока к его анимации
   useEffect(() => {
