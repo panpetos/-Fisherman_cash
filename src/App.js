@@ -7,17 +7,19 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-// Компонент игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
+  const clonedScene = scene.clone();
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
-    const action = actions[animationName];
-    if (action) {
-      action.reset().fadeIn(0.5).play();
-      return () => action.fadeOut(0.5).stop();
+    if (group.current) {
+      const action = actions[animationName];
+      if (action) {
+        action.reset().fadeIn(0.5).play();
+        return () => action.fadeOut(0.5).stop();
+      }
     }
   }, [animationName, actions]);
 
@@ -30,12 +32,11 @@ const Player = ({ id, position, rotation, animationName }) => {
 
   return (
     <group ref={group}>
-      <primitive object={scene.clone()} />
+      <primitive object={clonedScene} />
     </group>
   );
 };
 
-// Компонент камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
   const distance = 10;
@@ -59,7 +60,6 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   return null;
 };
 
-// Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
@@ -110,7 +110,11 @@ const App = () => {
     const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
     const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
+    const newPosition = new Vector3(
+      playerPosition[0] + forwardMovement.x + rightMovement.x,
+      playerPosition[1],
+      playerPosition[2] + forwardMovement.z + rightMovement.z
+    );
 
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
@@ -126,7 +130,7 @@ const App = () => {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animationName: 'Run'
+      animationName: 'Run',
     });
   };
 
@@ -139,7 +143,7 @@ const App = () => {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'St'
+      animationName: 'St',
     });
 
     stopTimeoutRef.current = setTimeout(() => {
@@ -162,7 +166,7 @@ const App = () => {
     const updateCameraRotation = () => {
       setCameraRotation((prev) => {
         const deltaRotation = cameraTargetRotation - prev;
-        const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
+        const normalizedDelta = ((deltaRotation + Math.PI) % (2 * Math.PI)) - Math.PI;
         const newRotation = prev + normalizedDelta * 0.1;
         return newRotation % (2 * Math.PI);
       });
@@ -180,7 +184,7 @@ const App = () => {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'Fs_2'
+      animationName: 'Fs_2',
     });
   };
 
