@@ -13,6 +13,11 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
 
+  // Вставить этот код сразу после загрузки модели и анимаций
+useEffect(() => {
+  console.log("Загруженные анимации для модели Player.glb:", animations);
+}, [animations]);
+
   useEffect(() => {
     const action = actions[animationName];
 
