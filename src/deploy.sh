@@ -1,24 +1,36 @@
 #!/bin/bash
 
-# Export Moscow time zone
-export TZ="Europe/Moscow"
-
-# Your bot token and chat_id
+# Ваш токен бота и chat_id
 TELEGRAM_BOT_TOKEN="7116339146:AAHThGMs_UDxGxw2dxsIDluB7r3ZjO8ZOyI"
 TELEGRAM_CHAT_ID="435740601"
 
-# Get current time
-CURRENT_TIME=$(date +"%H:%M")
+# Получение текущего времени по МСК
+CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
 
-# Deploy status message with time
+# Сообщение о статусе деплоя с указанием времени
 DEPLOY_STATUS_MESSAGE="Деплой завершен успешно в ${CURRENT_TIME} (МСК)!"
 
-# Step 1: Add files to git, commit, and push
+# Функция для экранирования специальных символов
+urlencode() {
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf "$c" ;;
+            *) printf '%%%02X' "'$c" ;;
+        esac
+    done
+}
+
+# Закодированное сообщение для безопасной передачи через URL
+ENCODED_MESSAGE=$(urlencode "${DEPLOY_STATUS_MESSAGE}")
+
+# Шаг 1: Добавление файлов в git, коммит и пуш
 git add .
 git commit -m "$1"
 git push origin master
 
-# Step 2: SSH connect and deploy on the server
+# Шаг 2: SSH подключение и деплой на сервере
 ssh -T root@brandingsite.store << 'EOF'
   cd Fisherman_cash/Fisherman_cash/my-multiplayer-app
   git pull origin master
@@ -26,16 +38,16 @@ ssh -T root@brandingsite.store << 'EOF'
   echo "Деплой на сервере завершен!"
 EOF
 
-# Step 3: Local project build
+# Шаг 3: Локальная сборка проекта
 npm run build
 
-# Step 4: Deploy on Netlify
+# Шаг 4: Деплой на Netlify
 netlify deploy --prod --dir=build
 
-# Message about successful completion
+# Сообщение об успешном завершении
 echo "Все этапы деплоя завершены!"
 
-# Step 5: Telegram notification
+# Шаг 5: Уведомление в Telegram
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-    --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-    --data-urlencode "text=${DEPLOY_STATUS_MESSAGE}"
+    -d chat_id="${TELEGRAM_CHAT_ID}" \
+    -d text="${ENCODED_MESSAGE}"
