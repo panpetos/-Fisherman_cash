@@ -10,6 +10,21 @@ CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
 # Сообщение о статусе деплоя с указанием времени
 DEPLOY_STATUS_MESSAGE="Деплой завершен успешно в ${CURRENT_TIME} (МСК)!"
 
+# Функция для экранирования специальных символов
+urlencode() {
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf "$c" ;;
+            *) printf '%%%02X' "'$c" ;;
+        esac
+    done
+}
+
+# Закодированное сообщение для безопасной передачи через URL
+ENCODED_MESSAGE=$(urlencode "${DEPLOY_STATUS_MESSAGE}")
+
 # Шаг 1: Добавление файлов в git, коммит и пуш
 git add .
 git commit -m "$1"
@@ -32,9 +47,7 @@ netlify deploy --prod --dir=build
 # Сообщение об успешном завершении
 echo "Все этапы деплоя завершены!"
 
-# Шаг 5: Уведомление в Telegram (безопасная кодировка сообщения)
-ENCODED_MESSAGE=$(echo -e "${DEPLOY_STATUS_MESSAGE}" | jq -sRr @uri)
-
+# Шаг 5: Уведомление в Telegram
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
     -d chat_id="${TELEGRAM_CHAT_ID}" \
     -d text="${ENCODED_MESSAGE}"
