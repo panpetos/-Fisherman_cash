@@ -10,7 +10,7 @@ CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
 # Сообщение о статусе деплоя с указанием времени
 DEPLOY_STATUS_MESSAGE="Деплой завершен успешно в ${CURRENT_TIME} (МСК)!"
 
-# Функция для экранирования специальных символов
+# Функция для кодирования URL
 urlencode() {
     local length="${#1}"
     for (( i = 0; i < length; i++ )); do
