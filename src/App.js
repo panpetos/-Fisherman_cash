@@ -1,28 +1,39 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
+import { useFBX } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
+import * as THREE from 'three';
 
 let socket;
 
 // Компонент игрока
 const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions } = useAnimations(animations, group);
+  const [mixer, setMixer] = useState(null);
+  const fbx = useFBX('public/models_2/T-Pose.fbx'); // Используем T-Pose как базовую модель
 
-  // Локальный игрок управляет анимацией локально
+  // Локальный микшер для анимаций
   useEffect(() => {
-    if (actions && animationName) {
-      const action = actions[animationName];
-      if (action) {
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      }
+    const newMixer = new THREE.AnimationMixer(fbx);
+    setMixer(newMixer);
+
+    // Загрузка анимаций
+    const animations = {
+      St: useFBX('public/models_2/Idle.fbx'),
+      Run: useFBX('public/models_2/Running.fbx'),
+      Fs_2: useFBX('public/models_2/FishingIdle.fbx'),
+    };
+
+    // Привязка анимации к модели
+    if (animationName && animations[animationName]) {
+      const action = newMixer.clipAction(animations[animationName].animations[0]);
+      action.reset().fadeIn(0.5).play();
+
+      return () => action.fadeOut(0.5).stop();
     }
-  }, [animationName, actions]);
+  }, [animationName, fbx]);
 
   // Привязываем положение игрока к его анимации
   useEffect(() => {
@@ -32,9 +43,13 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
     }
   }, [position, rotation]);
 
+  useFrame((_, delta) => {
+    if (mixer) mixer.update(delta);
+  });
+
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={scene} />
+      <primitive object={fbx} />
     </group>
   );
 };
@@ -65,11 +80,10 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 
 // Компонент пола
 const TexturedFloor = () => {
-  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial map={texture} />
+      <meshStandardMaterial color="#567d46" />
     </mesh>
   );
 };
