@@ -14,6 +14,9 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
+    if (!group.current) return;
+
+    // Запуск анимации
     const action = actions[animationName];
     if (action) {
       action.reset().fadeIn(0.5).play();
@@ -22,10 +25,11 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
-    if (group.current) {
-      group.current.position.set(...position);
-      group.current.rotation.set(0, rotation, 0);
-    }
+    if (!group.current) return;
+
+    // Обновление позиции и поворота игрока
+    group.current.position.set(...position);
+    group.current.rotation.set(0, rotation, 0);
   }, [position, rotation]);
 
   return (
@@ -43,17 +47,17 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   const smoothFactor = 0.05;
 
   useFrame(() => {
-    if (camera) {
-      const targetRotation = isPlayerMoving ? cameraTargetRotation : cameraRotation;
-      const currentRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
-      const offset = new Vector3(
-        -Math.sin(currentRotation) * distance,
-        height,
-        Math.cos(currentRotation) * distance
-      );
-      camera.position.copy(new Vector3(...playerPosition).add(offset));
-      camera.lookAt(new Vector3(...playerPosition));
-    }
+    if (!camera) return;
+
+    const targetRotation = isPlayerMoving ? cameraTargetRotation : cameraRotation;
+    const currentRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
+    const offset = new Vector3(
+      -Math.sin(currentRotation) * distance,
+      height,
+      Math.cos(currentRotation) * distance
+    );
+    camera.position.copy(new Vector3(...playerPosition).add(offset));
+    camera.lookAt(new Vector3(...playerPosition));
   });
 
   return null;
@@ -100,6 +104,7 @@ const App = () => {
       console.log('Disconnected from server');
     });
 
+    // При обновлении данных игроков сервером
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers((prevPlayers) => ({
         ...prevPlayers,
@@ -108,6 +113,7 @@ const App = () => {
       setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
+    // При инициализации игрока сервером
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
@@ -119,9 +125,11 @@ const App = () => {
       setTimeout(() => setMessage(''), 2000); // Сообщение показывается на 2 секунды
     });
 
+    // Запрашиваем игроков на сервере
     socket.emit('requestPlayers');
   };
 
+  // Движение игрока
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.2;
@@ -145,6 +153,7 @@ const App = () => {
 
     setAnimationName('Run');
 
+    // Отправляем обновления игрока на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
