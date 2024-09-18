@@ -95,7 +95,7 @@ const App = () => {
   const tposeModel = useFBX('/models_2/T-Pose.fbx');
 const runningModel = useFBX('/models_2/Running.fbx');
 const idleModel = useFBX('/models_2/Idle.fbx');
-const fishingIdleModel = useFBX('/models_2/FishingIdle.fbx');
+const fishingIdleModel = useFBX('/models_2/Fishing_Idle.fbx');
 
 
   useEffect(() => {
