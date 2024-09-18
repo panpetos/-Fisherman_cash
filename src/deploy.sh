@@ -1,21 +1,24 @@
 #!/bin/bash
 
-# Ваш токен бота и chat_id
+# Export Moscow time zone
+export TZ="Europe/Moscow"
+
+# Your bot token and chat_id
 TELEGRAM_BOT_TOKEN="7116339146:AAHThGMs_UDxGxw2dxsIDluB7r3ZjO8ZOyI"
 TELEGRAM_CHAT_ID="435740601"
 
-# Получение текущего времени по МСК
-CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
+# Get current time
+CURRENT_TIME=$(date +"%H:%M")
 
-# Сообщение о статусе деплоя с указанием времени
+# Deploy status message with time
 DEPLOY_STATUS_MESSAGE="Деплой завершен успешно в ${CURRENT_TIME} (МСК)!"
 
-# Шаг 1: Добавление файлов в git, коммит и пуш
+# Step 1: Add files to git, commit, and push
 git add .
 git commit -m "$1"
 git push origin master
 
-# Шаг 2: SSH подключение и деплой на сервере
+# Step 2: SSH connect and deploy on the server
 ssh -T root@brandingsite.store << 'EOF'
   cd Fisherman_cash/Fisherman_cash/my-multiplayer-app
   git pull origin master
@@ -23,16 +26,16 @@ ssh -T root@brandingsite.store << 'EOF'
   echo "Деплой на сервере завершен!"
 EOF
 
-# Шаг 3: Локальная сборка проекта
+# Step 3: Local project build
 npm run build
 
-# Шаг 4: Деплой на Netlify
+# Step 4: Deploy on Netlify
 netlify deploy --prod --dir=build
 
-# Сообщение об успешном завершении
+# Message about successful completion
 echo "Все этапы деплоя завершены!"
 
-# Шаг 5: Уведомление в Telegram с явным указанием кодировки UTF-8
-curl -s --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-    --data-urlencode "text=${DEPLOY_STATUS_MESSAGE}" \
-    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+# Step 5: Telegram notification
+curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+    --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+    --data-urlencode "text=${DEPLOY_STATUS_MESSAGE}"
