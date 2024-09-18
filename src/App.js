@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -11,28 +11,17 @@ let socket;
 const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  
-  // Клонируем сцену и анимации для каждого игрока
-  const clonedScene = scene.clone();
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
-    const action = actions[animationName];
-    if (action) {
-      // Фильтруем треки, чтобы исключить ошибки с отсутствующими костями
-      const validTracks = action._clip.tracks.filter((track) => {
-        const nodeName = track.name.split('.')[0];
-        return group.current.getObjectByName(nodeName);
-      });
-
-      if (validTracks.length === action._clip.tracks.length) {
+    if (group.current) {
+      const action = actions[animationName];
+      if (action) {
         action.reset().fadeIn(0.5).play();
         return () => action.fadeOut(0.5).stop();
-      } else {
-        console.warn(`Некоторые треки анимации ${animationName} для игрока ${id} недействительны.`);
       }
     }
-  }, [animationName, actions, id]);
+  }, [animationName, actions]);
 
   useEffect(() => {
     if (group.current) {
@@ -43,7 +32,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={clonedScene} />
+      <primitive object={scene} />
     </group>
   );
 };
@@ -72,6 +61,17 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   return null;
 };
 
+// Компонент пола
+const TexturedFloor = () => {
+  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
+  return (
+    <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
+      <planeGeometry args={[100, 100]} />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  );
+};
+
 // Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
@@ -84,6 +84,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [playerCount, setPlayerCount] = useState(0);
+  const [message, setMessage] = useState('');
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
 
@@ -102,6 +104,7 @@ const App = () => {
 
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
+      setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
     socket.on('initPlayer', (player, allPlayers) => {
@@ -111,6 +114,8 @@ const App = () => {
       setAnimationName(player.animationName);
       setModelsLoaded(true);
       setIsLoading(false);
+      setMessage('+1 игрок');
+      setTimeout(() => setMessage(''), 2000); // Сообщение показывается на 2 секунды
     });
 
     socket.emit('requestPlayers');
@@ -270,6 +275,7 @@ const App = () => {
             isLocalPlayer={id === socket.id}
           />
         ))}
+        <TexturedFloor />
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
@@ -295,6 +301,12 @@ const App = () => {
       >
         Забросить
       </button>
+
+      {/* Отображение количества игроков и сообщения о подключении */}
+      <div style={{ position: 'absolute', top: 10, left: 10, fontSize: '12px', color: 'white' }}>
+        <p>Игроков: {playerCount}</p>
+        <p>{message}</p>
+      </div>
     </div>
   );
 };
