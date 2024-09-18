@@ -5,7 +5,7 @@ TELEGRAM_BOT_TOKEN="7116339146:AAHThGMs_UDxGxw2dxsIDluB7r3ZjO8ZOyI"
 TELEGRAM_CHAT_ID="435740601"
 
 # Получение текущего времени по МСК
-CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
+CURRENT_TIME=$(TZ="Europe/Moscow" date -d "+3 hours" +"%H:%M")
 
 # Сообщение о статусе деплоя с указанием времени
 DEPLOY_STATUS_MESSAGE="Good! Time: ${CURRENT_TIME}"
