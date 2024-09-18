@@ -33,7 +33,10 @@ io.on('connection', (socket) => {
   // Отправляем состояние текущему игроку
   socket.emit('initPlayer', players[socket.id], players);
 
-  // Обновляем данные игрока и передаем их всем, кроме самого игрока
+  // Передаем обновления всем игрокам, включая подключившегося
+  io.emit('updatePlayers', players);
+
+  // Обновляем данные игрока и передаем их всем
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id] = {
@@ -43,10 +46,8 @@ io.on('connection', (socket) => {
         animationName: data.animationName,
       };
 
-      // Передаем обновленные данные всем, кроме самого отправителя
-      socket.broadcast.emit('updatePlayers', {
-        [socket.id]: players[socket.id],
-      });
+      // Передаем обновленные данные всем игрокам
+      io.emit('updatePlayers', players);
     }
   });
 

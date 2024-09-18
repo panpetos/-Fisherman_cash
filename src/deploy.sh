@@ -32,8 +32,9 @@ netlify deploy --prod --dir=build
 # Сообщение об успешном завершении
 echo "Все этапы деплоя завершены!"
 
-# Шаг 5: Уведомление в Telegram
+# Шаг 5: Уведомление в Telegram (безопасная кодировка сообщения)
+ENCODED_MESSAGE=$(echo -e "${DEPLOY_STATUS_MESSAGE}" | jq -sRr @uri)
+
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
     -d chat_id="${TELEGRAM_CHAT_ID}" \
-    -d text="${DEPLOY_STATUS_MESSAGE}"
-
+    -d text="${ENCODED_MESSAGE}"

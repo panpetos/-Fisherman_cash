@@ -10,24 +10,28 @@ let socket;
 // Компонент игрока
 const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
+  const [currentAction, setCurrentAction] = useState(null);
+  
+  const tPose = useFBX('/models_2/T-Pose.fbx');
+  const idle = useFBX('/models_2/Idle.fbx');
+  const running = useFBX('/models_2/Running.fbx');
+  const fishingIdle = useFBX('/models_2/Fishing_Idle.fbx');
+
   const animations = {
-    Idle: useFBX('/models_2/Idle.fbx'),
-    Running: useFBX('/models_2/Running.fbx'),
-    FishingIdle: useFBX('/models_2/Fishing_Idle.fbx'),
-    TPose: useFBX('/models_2/T-Pose.fbx')
+    Idle: idle,
+    Run: running,
+    Fish: fishingIdle,
   };
 
-  const [currentAnimation, setCurrentAnimation] = useState(null);
-
-  // Следим за загрузкой анимаций и проверяем, что объект загружен
+  // Локальный игрок управляет анимацией локально
   useEffect(() => {
-    if (animations[animationName] && animations[animationName].isObject3D) {
+    if (animations[animationName]) {
       const action = animations[animationName];
-      setCurrentAnimation(action);
-    } else {
-      console.error('Анимация не загружена или неверный формат:', animationName);
+      if (currentAction !== action) {
+        setCurrentAction(action);
+      }
     }
-  }, [animationName, animations]);
+  }, [animationName, animations, currentAction]);
 
   // Привязываем положение игрока к его анимации
   useEffect(() => {
@@ -39,7 +43,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      {currentAnimation && <primitive object={currentAnimation} />}
+      <primitive object={currentAction ? currentAction.scene : tPose.scene} />
     </group>
   );
 };
@@ -112,7 +116,6 @@ const App = () => {
     // Обновление данных других игроков
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers((prevPlayers) => ({
-        ...prevPlayers,
         ...updatedPlayers,
       }));
       setPlayerCount(Object.keys(updatedPlayers).length);
@@ -156,20 +159,20 @@ const App = () => {
     setIsLocalPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    setAnimationName('Running'); // Бег
+    setAnimationName('Run');
 
     // Отправляем данные только для других игроков
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animationName: 'Running',
+      animationName: 'Run',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('Idle'); // Стойка
+    setAnimationName('Idle');
     setIsLocalPlayerMoving(false);
 
     // Обновляем состояние игрока на сервере
@@ -271,7 +274,7 @@ const App = () => {
       </div>
 
       <button
-        onClick={() => setAnimationName('FishingIdle')} // Забросить удочку
+        onClick={() => setAnimationName('Fish')} // Забросить
         style={{
           position: 'absolute',
           bottom: 20,
