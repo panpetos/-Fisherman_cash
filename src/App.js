@@ -14,12 +14,10 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
-    if (group.current) {
-      const action = actions[animationName];
-      if (action) {
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      }
+    const action = actions[animationName];
+    if (action) {
+      action.reset().fadeIn(0.5).play();
+      return () => action.fadeOut(0.5).stop();
     }
   }, [animationName, actions]);
 
@@ -103,7 +101,10 @@ const App = () => {
     });
 
     socket.on('updatePlayers', (updatedPlayers) => {
-      setPlayers(updatedPlayers);
+      setPlayers((prevPlayers) => ({
+        ...prevPlayers,
+        ...updatedPlayers,
+      }));
       setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
