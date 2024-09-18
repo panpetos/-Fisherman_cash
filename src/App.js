@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useAnimations, useFBX, useTexture } from '@react-three/drei';
+import { useFBX, useTexture } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -8,21 +8,9 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer, model }) => {
+const Player = ({ id, position, rotation, animation, isLocalPlayer }) => {
   const group = useRef();
-  const { animations } = model;
-  const { actions } = useAnimations(animations, group);
-
-  // Локальный игрок управляет анимацией локально
-  useEffect(() => {
-    if (actions && animationName) {
-      const action = actions[animationName];
-      if (action) {
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      }
-    }
-  }, [animationName, actions]);
+  const playerFBX = useFBX(`/models_2/${animation}.fbx`);
 
   // Привязываем положение игрока к его анимации
   useEffect(() => {
@@ -34,7 +22,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, model })
 
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={model.scene} />
+      <primitive object={playerFBX} />
     </group>
   );
 };
@@ -80,7 +68,7 @@ const App = () => {
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('St');
+  const [animationName, setAnimationName] = useState('T-Pose');
   const [players, setPlayers] = useState({});
   const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,21 +78,6 @@ const App = () => {
   const [message, setMessage] = useState('');
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
-
-  // Загружаем все анимации
-  const tposeModel = useFBX('/models_2/T-Pose.fbx');
-const runningModel = useFBX('/models_2/Running.fbx');
-const idleModel = useFBX('/models_2/Idle.fbx');
-const fishingIdleModel = useFBX('/models_2/Fishing_Idle.fbx');
-
-
-  useEffect(() => {
-    // Если все модели загружены, снимаем статус загрузки
-    if (tposeModel && runningModel && idleModel && fishingIdleModel) {
-      setModelsLoaded(true);
-      setIsLoading(false);
-    }
-  }, [tposeModel, runningModel, idleModel, fishingIdleModel]);
 
   // Соединение с сервером
   const handleConnect = () => {
@@ -167,20 +140,20 @@ const fishingIdleModel = useFBX('/models_2/Fishing_Idle.fbx');
     setIsLocalPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    setAnimationName('Run');
+    setAnimationName('Running');
 
     // Отправляем данные только для других игроков
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animationName: 'Run',
+      animationName: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('St');
+    setAnimationName('Idle');
     setIsLocalPlayerMoving(false);
 
     // Обновляем состояние игрока на сервере
@@ -188,7 +161,7 @@ const fishingIdleModel = useFBX('/models_2/Fishing_Idle.fbx');
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'St',
+      animationName: 'Idle',
     });
 
     stopTimeoutRef.current = setTimeout(() => {
@@ -264,9 +237,8 @@ const fishingIdleModel = useFBX('/models_2/Fishing_Idle.fbx');
             id={id}
             position={players[id].position}
             rotation={players[id].rotation}
-            animationName={players[id].animationName}
+            animation={players[id].animationName}
             isLocalPlayer={id === socket.id}
-            model={runningModel} // Используем модель с анимацией бега
           />
         ))}
         <TexturedFloor />
@@ -283,7 +255,7 @@ const fishingIdleModel = useFBX('/models_2/Fishing_Idle.fbx');
       </div>
 
       <button
-        onClick={() => setAnimationName('Fs_2')} // Забросить
+        onClick={() => setAnimationName('FishingIdle')} // Забросить
         style={{
           position: 'absolute',
           bottom: 20,
