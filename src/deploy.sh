@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Установка локали UTF-8
-export LANG=ru_RU.UTF-8
-export LC_ALL=ru_RU.UTF-8
-
 # Ваш токен бота и chat_id
 TELEGRAM_BOT_TOKEN="7116339146:AAHThGMs_UDxGxw2dxsIDluB7r3ZjO8ZOyI"
 TELEGRAM_CHAT_ID="435740601"
@@ -12,7 +8,22 @@ TELEGRAM_CHAT_ID="435740601"
 CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
 
 # Сообщение о статусе деплоя с указанием времени
-DEPLOY_STATUS_MESSAGE="Деплой завершен успешно в ${CURRENT_TIME} (МСК)!"
+DEPLOY_STATUS_MESSAGE="Деплой завершен успешно!"
+
+# Функция для экранирования специальных символов
+urlencode() {
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf "$c" ;;
+            *) printf '%%%02X' "'$c" ;;
+        esac
+    done
+}
+
+# Закодированное сообщение для безопасной передачи через URL
+ENCODED_MESSAGE=$(urlencode "${DEPLOY_STATUS_MESSAGE}")
 
 # Шаг 1: Добавление файлов в git, коммит и пуш
 git add .
@@ -34,9 +45,9 @@ npm run build
 netlify deploy --prod --dir=build
 
 # Сообщение об успешном завершении
-echo "Все этапы деплоя завершены!"
+echo "Yes!"
 
 # Шаг 5: Уведомление в Telegram
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-     --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-     --data-urlencode "text=${DEPLOY_STATUS_MESSAGE}"
+    -d chat_id="${TELEGRAM_CHAT_ID}" \
+    -d text="${ENCODED_MESSAGE}"
