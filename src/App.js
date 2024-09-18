@@ -15,15 +15,15 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   useEffect(() => {
     const action = actions[animationName];
-
-    // Проверка и фильтрация треков
     if (action) {
+      // Фильтруем треки, которые привязаны к существующим объектам в модели
       const validTracks = action._clip.tracks.filter(track => {
         const nodeName = track.name.split('.')[0];
         return group.current.getObjectByName(nodeName);
       });
 
       if (validTracks.length === action._clip.tracks.length) {
+        // Если все треки валидны, проигрываем анимацию
         action.reset().fadeIn(0.5).play();
         return () => action.fadeOut(0.5).stop();
       } else {
@@ -43,7 +43,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   return (
     <group ref={group}>
-      <primitive object={scene} />
+      <primitive object={scene.clone()} /> {/* Используем клон модели для каждого игрока */}
     </group>
   );
 };
@@ -269,7 +269,7 @@ const App = () => {
           fontSize: '16px'
         }}
       >
-        Забросить-1
+        Забросить
       </button>
     </div>
   );
