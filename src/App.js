@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useFBX, useTexture } from '@react-three/drei';
+import { useFBX } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -8,9 +8,28 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animation, isLocalPlayer }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
-  const playerFBX = useFBX(`/models_2/${animation}.fbx`);
+  const animations = {
+    Idle: useFBX('/models_2/Idle.fbx'),
+    Running: useFBX('/models_2/Running.fbx'),
+    FishingIdle: useFBX('/models_2/Fishing_Idle.fbx'),
+    TPose: useFBX('/models_2/T-Pose.fbx')
+  };
+
+  const [currentAnimation, setCurrentAnimation] = useState(null);
+
+  useEffect(() => {
+    if (animations[animationName]) {
+      const action = animations[animationName];
+      if (group.current) {
+        group.current.children[0].traverse((child) => {
+          if (child.isMesh) child.animations = action.animations;
+        });
+      }
+      setCurrentAnimation(action);
+    }
+  }, [animationName]);
 
   // Привязываем положение игрока к его анимации
   useEffect(() => {
@@ -22,7 +41,7 @@ const Player = ({ id, position, rotation, animation, isLocalPlayer }) => {
 
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={playerFBX} />
+      {currentAnimation && <primitive object={currentAnimation} />}
     </group>
   );
 };
@@ -53,11 +72,10 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 
 // Компонент пола
 const TexturedFloor = () => {
-  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial map={texture} />
+      <meshStandardMaterial color="green" />
     </mesh>
   );
 };
@@ -68,7 +86,7 @@ const App = () => {
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('T-Pose');
+  const [animationName, setAnimationName] = useState('Idle');
   const [players, setPlayers] = useState({});
   const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -140,7 +158,7 @@ const App = () => {
     setIsLocalPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    setAnimationName('Running');
+    setAnimationName('Running'); // Бег
 
     // Отправляем данные только для других игроков
     socket.emit('playerMove', {
@@ -153,7 +171,7 @@ const App = () => {
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('Idle');
+    setAnimationName('Idle'); // Стойка
     setIsLocalPlayerMoving(false);
 
     // Обновляем состояние игрока на сервере
@@ -237,7 +255,7 @@ const App = () => {
             id={id}
             position={players[id].position}
             rotation={players[id].rotation}
-            animation={players[id].animationName}
+            animationName={players[id].animationName}
             isLocalPlayer={id === socket.id}
           />
         ))}
@@ -255,7 +273,7 @@ const App = () => {
       </div>
 
       <button
-        onClick={() => setAnimationName('FishingIdle')} // Забросить
+        onClick={() => setAnimationName('FishingIdle')} // Забросить удочку
         style={{
           position: 'absolute',
           bottom: 20,
