@@ -209,23 +209,57 @@ const App = () => {
 
   if (!isConnected) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundImage: 'url(/nebo.jpg)',
+          backgroundSize: 'cover',
+        }}
+      >
         <h1>FunFishing</h1>
-        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
+        <button
+          onClick={handleConnect}
+          style={{ padding: '10px 20px', fontSize: '16px' }}
+        >
+          Войти в общий сервер
+        </button>
       </div>
     );
   }
 
   if (isLoading || !modelsLoaded) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundImage: 'url(/nebo.jpg)',
+          backgroundSize: 'cover',
+        }}
+      >
         <h1>Загрузка...</h1>
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+    <div
+      style={{
+        height: '100vh',
+        width: '100vw',
+        position: 'relative',
+        backgroundImage: 'url(/nebo.jpg)',
+        backgroundSize: 'cover',
+      }}
+    >
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
@@ -266,7 +300,7 @@ const App = () => {
           left: '50%',
           transform: 'translateX(-50%)',
           padding: '10px 20px',
-          fontSize: '16px'
+          fontSize: '16px',
         }}
       >
         Забросить
