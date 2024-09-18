@@ -8,7 +8,7 @@ TELEGRAM_CHAT_ID="435740601"
 CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
 
 # Сообщение о статусе деплоя с указанием времени
-DEPLOY_STATUS_MESSAGE="Деплой завершен успешно в ${CURRENT_TIME} (МСК)!"
+DEPLOY_STATUS_MESSAGE="Деплой завершен успешно!"
 
 # Функция для экранирования специальных символов
 urlencode() {
