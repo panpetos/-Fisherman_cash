@@ -1,0 +1,4 @@
+Host brandingsite.store
+  HostName brandingsite.store
+  User root
+  IdentityFile C:/Users/petrv/.ssh/id_ed25519

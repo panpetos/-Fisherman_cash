@@ -111,6 +111,7 @@ const App = () => {
       console.log('Disconnected from server');
     });
 
+    // Обновление списка игроков с анимациями при изменениях
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers((prevPlayers) => ({
         ...prevPlayers,
@@ -119,6 +120,7 @@ const App = () => {
       setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
+    // Инициализация игрока при подключении
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
@@ -130,6 +132,7 @@ const App = () => {
       setTimeout(() => setMessage(''), 2000); // Сообщение показывается на 2 секунды
     });
 
+    // Запрашиваем текущих игроков у сервера
     socket.emit('requestPlayers');
   };
 
@@ -156,6 +159,7 @@ const App = () => {
 
     setAnimationName('Run');
 
+    // Отправляем данные об игроке на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -169,6 +173,7 @@ const App = () => {
     setAnimationName('St');
     setIsPlayerMoving(false);
 
+    // Обновляем состояние игрока на сервере
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -311,7 +316,7 @@ const App = () => {
           fontSize: '16px',
         }}
       >
-        Забросить8
+        Забросить
       </button>
 
       {/* Отображение количества игроков и сообщения о подключении */}
