@@ -92,10 +92,11 @@ const App = () => {
   const stopTimeoutRef = useRef(null);
 
   // Загружаем все анимации
-  const tposeModel = useFBX('\models_2\T-Pose.fbx');
-  const runningModel = useFBX('\models_2\Running.fbx');
-  const idleModel = useFBX('\models_2\Idle.fbx');
-  const fishingIdleModel = useFBX('\models_2\FishingIdle.fbx');
+  const tposeModel = useFBX('/models_2/T-Pose.fbx');
+const runningModel = useFBX('/models_2/Running.fbx');
+const idleModel = useFBX('/models_2/Idle.fbx');
+const fishingIdleModel = useFBX('/models_2/FishingIdle.fbx');
+
 
   useEffect(() => {
     // Если все модели загружены, снимаем статус загрузки
