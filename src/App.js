@@ -14,24 +14,13 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
+    // Сбрасываем, запускаем и анимируем действия
     const action = actions[animationName];
     if (action) {
-      // Фильтруем треки, которые привязаны к существующим объектам в модели
-      const validTracks = action._clip.tracks.filter(track => {
-        const nodeName = track.name.split('.')[0];
-        return group.current.getObjectByName(nodeName);
-      });
-
-      if (validTracks.length === action._clip.tracks.length) {
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      } else {
-        console.warn(`Some tracks are invalid for animation ${animationName} of player ${id}`);
-      }
-    } else {
-      console.warn(`Animation ${animationName} not found for player ${id}`);
+      action.reset().fadeIn(0.5).play();
+      return () => action.fadeOut(0.5).stop();
     }
-  }, [animationName, actions, id]);
+  }, [animationName, actions]);
 
   useEffect(() => {
     if (group.current) {
@@ -41,8 +30,8 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   }, [position, rotation]);
 
   return (
-    <group ref={group}>
-      <primitive object={scene.clone()} /> {/* Используем клон модели для каждого игрока */}
+    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
+      <primitive object={scene} />
     </group>
   );
 };
@@ -102,17 +91,11 @@ const App = () => {
     setIsConnected(true);
     socket = io('https://brandingsite.store:5000');
 
-    socket.on('connect', () => {
-      console.log('Connected to server with id:', socket.id);
-    });
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
+    socket.on('connect', () => console.log('Connected to server with id:', socket.id));
+    socket.on('disconnect', () => console.log('Disconnected from server'));
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
-
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
@@ -221,10 +204,7 @@ const App = () => {
         }}
       >
         <h1>FunFishing</h1>
-        <button
-          onClick={handleConnect}
-          style={{ padding: '10px 20px', fontSize: '16px' }}
-        >
+        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
           Войти в общий сервер
         </button>
       </div>
@@ -282,13 +262,7 @@ const App = () => {
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick
-          size={80}
-          baseColor="gray"
-          stickColor="black"
-          move={handleMove}
-          stop={handleStop}
-        />
+        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
 
       <button
