@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
+import { useGLTF, useAnimations } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -17,17 +17,18 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
     const action = actions[animationName];
 
     if (action) {
-      // Фильтрация недействительных треков анимации
+      // Улучшенная фильтрация недействительных треков
       const validTracks = action._clip.tracks.filter((track) => {
         const nodeName = track.name.split('.')[0];
         return group.current.getObjectByName(nodeName);
       });
 
-      if (validTracks.length === action._clip.tracks.length) {
+      if (validTracks.length > 0) {
+        // Если есть валидные треки, играем их
         action.reset().fadeIn(0.5).play();
         return () => action.fadeOut(0.5).stop();
       } else {
-        console.warn(`Некоторые треки анимации ${animationName} недействительны для игрока ${id}`);
+        console.warn(`Все треки анимации ${animationName} недействительны для игрока ${id}`);
       }
     }
   }, [animationName, actions, id]);
