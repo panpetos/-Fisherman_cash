@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import { useFBX, useAnimations } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -10,30 +10,20 @@ let socket;
 // Компонент игрока
 const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
-  const [currentAction, setCurrentAction] = useState(null);
-  
-  const tPose = useFBX('/models_2/T-Pose.fbx');
-  const idle = useFBX('/models_2/Idle.fbx');
-  const running = useFBX('/models_2/Running.fbx');
-  const fishingIdle = useFBX('/models_2/Fishing_Idle.fbx');
 
-  const animations = {
-    Idle: idle,
-    Run: running,
-    Fish: fishingIdle,
-  };
+  // Загрузка модели и анимаций
+  const model = useFBX('/models_2/T-Pose.fbx');
+  const idleAnim = useFBX('/models_2/Idle.fbx');
+  const runAnim = useFBX('/models_2/Running.fbx');
+  const fishAnim = useFBX('/models_2/Fishing_Idle.fbx');
 
-  // Локальный игрок управляет анимацией локально
-  useEffect(() => {
-    if (animations[animationName]) {
-      const action = animations[animationName];
-      if (currentAction !== action) {
-        setCurrentAction(action);
-      }
-    }
-  }, [animationName, animations, currentAction]);
+  // Комбинируем все анимации
+  const { actions } = useAnimations(
+    [...idleAnim.animations, ...runAnim.animations, ...fishAnim.animations],
+    group
+  );
 
-  // Привязываем положение игрока к его анимации
+  // Обновляем положение и поворот игрока
   useEffect(() => {
     if (group.current) {
       group.current.position.set(...position);
@@ -41,9 +31,25 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
     }
   }, [position, rotation]);
 
+  // Обновляем текущую анимацию при изменении animationName
+  useEffect(() => {
+    if (actions && animationName && actions[animationName]) {
+      actions[animationName].reset().fadeIn(0.5).play();
+      // Останавливаем другие анимации
+      Object.keys(actions).forEach((key) => {
+        if (key !== animationName && actions[key].isRunning()) {
+          actions[key].fadeOut(0.5);
+        }
+      });
+    }
+  }, [animationName, actions]);
+
+  // Проверяем, загрузилась ли модель
+  if (!model) return null;
+
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={currentAction ? currentAction.scene : tPose.scene} />
+      <primitive object={model} />
     </group>
   );
 };
@@ -93,7 +99,6 @@ const App = () => {
   const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [modelsLoaded, setModelsLoaded] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const [message, setMessage] = useState('');
   const movementDirectionRef = useRef({ x: 0, y: 0 });
@@ -127,7 +132,6 @@ const App = () => {
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
-      setModelsLoaded(true);
       setIsLoading(false);
       setMessage('+1 игрок');
       setTimeout(() => setMessage(''), 2000);
@@ -213,7 +217,7 @@ const App = () => {
   }
 
   // Отображение загрузки
-  if (isLoading || !modelsLoaded) {
+  if (isLoading) {
     return (
       <div
         style={{
@@ -242,25 +246,27 @@ const App = () => {
       }}
     >
       <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera
-          playerPosition={playerPosition}
-          cameraRotation={cameraRotation}
-          cameraTargetRotation={cameraTargetRotation}
-          isPlayerMoving={isLocalPlayerMoving}
-        />
-        {Object.keys(players).map((id) => (
-          <Player
-            key={id}
-            id={id}
-            position={players[id].position}
-            rotation={players[id].rotation}
-            animationName={players[id].animationName}
-            isLocalPlayer={id === socket.id}
+        <Suspense fallback={null}>
+          <ambientLight />
+          <pointLight position={[10, 10, 10]} />
+          <FollowCamera
+            playerPosition={playerPosition}
+            cameraRotation={cameraRotation}
+            cameraTargetRotation={cameraTargetRotation}
+            isPlayerMoving={isLocalPlayerMoving}
           />
-        ))}
-        <TexturedFloor />
+          {Object.keys(players).map((id) => (
+            <Player
+              key={id}
+              id={id}
+              position={players[id].position}
+              rotation={players[id].rotation}
+              animationName={players[id].animationName}
+              isLocalPlayer={id === socket.id}
+            />
+          ))}
+          <TexturedFloor />
+        </Suspense>
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
