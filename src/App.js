@@ -12,7 +12,7 @@ let socket;
 const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
   const [mixer, setMixer] = useState(null);
-  const fbx = useFBX('public/models_2/T-Pose.fbx'); // Используем T-Pose как базовую модель
+  const fbx = useFBX('public\models_2\T-Pose.fbx'); // Используем T-Pose как базовую модель
 
   // Локальный микшер для анимаций
   useEffect(() => {
@@ -21,9 +21,9 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
     // Загрузка анимаций
     const animations = {
-      St: useFBX('public/models_2/Idle.fbx'),
-      Run: useFBX('public/models_2/Running.fbx'),
-      Fs_2: useFBX('public/models_2/FishingIdle.fbx'),
+      St: useFBX('public\models_2\Idle.fbx'),
+      Run: useFBX('public\models_2\Running.fbx'),
+      Fs_2: useFBX('public\models_2\Fishing Idle.fbx'),
     };
 
     // Привязка анимации к модели
