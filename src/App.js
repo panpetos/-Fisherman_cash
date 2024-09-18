@@ -8,13 +8,10 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
-
-  // Создаём клон модели для каждого игрока
-  const clonedScene = scene.clone();
 
   useEffect(() => {
     const action = actions[animationName];
@@ -33,7 +30,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
 
   return (
     <group ref={group}>
-      <primitive object={clonedScene} />
+      <primitive object={scene.clone()} />
     </group>
   );
 };
