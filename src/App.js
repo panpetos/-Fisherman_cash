@@ -23,7 +23,6 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
       });
 
       if (validTracks.length === action._clip.tracks.length) {
-        // Если все треки валидны, проигрываем анимацию
         action.reset().fadeIn(0.5).play();
         return () => action.fadeOut(0.5).stop();
       } else {
