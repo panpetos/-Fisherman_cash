@@ -8,7 +8,7 @@ TELEGRAM_CHAT_ID="435740601"
 CURRENT_TIME=$(TZ="Europe/Moscow" date +"%H:%M")
 
 # Сообщение о статусе деплоя с указанием времени
-DEPLOY_STATUS_MESSAGE="Деплой завершен успешно!"
+DEPLOY_STATUS_MESSAGE="Good! Time: ${CURRENT_TIME}"
 
 # Функция для экранирования специальных символов
 urlencode() {
@@ -35,7 +35,7 @@ ssh -T root@brandingsite.store << 'EOF'
   cd Fisherman_cash/Fisherman_cash/my-multiplayer-app
   git pull origin master
   pm2 restart 5
-  echo "Yes!"
+  echo "Деплой на сервере завершен!"
 EOF
 
 # Шаг 3: Локальная сборка проекта
@@ -45,7 +45,7 @@ npm run build
 netlify deploy --prod --dir=build
 
 # Сообщение об успешном завершении
-echo "Yes!"
+echo "Все этапы деплоя завершены!"
 
 # Шаг 5: Уведомление в Telegram
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
