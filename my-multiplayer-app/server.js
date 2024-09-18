@@ -22,6 +22,7 @@ const players = {};
 io.on('connection', (socket) => {
   console.log('New client connected', socket.id);
 
+  // Инициализируем нового игрока
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
@@ -29,9 +30,10 @@ io.on('connection', (socket) => {
     animationName: 'St',
   };
 
+  // Отправляем состояние текущему игроку
   socket.emit('initPlayer', players[socket.id], players);
-  socket.broadcast.emit('updatePlayers', players);
 
+  // Обновляем данные игрока и передаем их всем, кроме самого игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id] = {
@@ -41,10 +43,14 @@ io.on('connection', (socket) => {
         animationName: data.animationName,
       };
 
-      io.emit('updatePlayers', players);
+      // Передаем обновленные данные всем, кроме самого отправителя
+      socket.broadcast.emit('updatePlayers', {
+        [socket.id]: players[socket.id],
+      });
     }
   });
 
+  // Удаляем игрока при отключении
   socket.on('disconnect', () => {
     console.log('Client disconnected', socket.id);
     delete players[socket.id];
