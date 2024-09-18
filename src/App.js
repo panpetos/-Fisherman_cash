@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
+import { useGLTF, useAnimations } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -8,13 +8,15 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
 
+  // Создаём клон модели для каждого игрока
+  const clonedScene = scene.clone();
+
   useEffect(() => {
-    // Проигрывание анимации при изменении
     const action = actions[animationName];
     if (action) {
       action.reset().fadeIn(0.5).play();
@@ -31,7 +33,7 @@ const Player = ({ id, position, rotation, animationName }) => {
 
   return (
     <group ref={group}>
-      <primitive object={scene} />
+      <primitive object={clonedScene} />
     </group>
   );
 };
@@ -60,17 +62,6 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   return null;
 };
 
-// Компонент пола
-const TexturedFloor = () => {
-  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  return (
-    <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
-      <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial map={texture} />
-    </mesh>
-  );
-};
-
 // Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
@@ -91,10 +82,14 @@ const App = () => {
     setIsConnected(true);
     socket = io('https://brandingsite.store:5000');
 
-    socket.on('connect', () => console.log('Connected to server with id:', socket.id));
-    socket.on('disconnect', () => console.log('Disconnected from server'));
+    socket.on('connect', () => {
+      console.log('Connected to server with id:', socket.id);
+    });
 
-    // Получение данных всех игроков с сервера
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+    });
+
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
@@ -104,8 +99,8 @@ const App = () => {
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
-      setModelsLoaded(true); // Модели загружены
-      setIsLoading(false); // Отключаем загрузочный экран
+      setModelsLoaded(true);
+      setIsLoading(false);
     });
 
     socket.emit('requestPlayers');
@@ -260,7 +255,6 @@ const App = () => {
             animationName={players[id].animationName}
           />
         ))}
-        <TexturedFloor />
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>

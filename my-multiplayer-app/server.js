@@ -4,7 +4,7 @@ const fs = require('fs');
 const socketIo = require('socket.io');
 const cors = require('cors');
 
-// Загрузка SSL-сертификатов
+// Загружаем SSL-сертификаты для HTTPS
 const privateKey = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/privkey.pem', 'utf8');
 const certificate = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/fullchain.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
@@ -18,53 +18,68 @@ const io = socketIo(server, {
   },
 });
 
-// Хранение состояния всех игроков
+// Храним состояние всех игроков
 const players = {};
 
-io.on('connection', (socket) => {
-  console.log('New client connected', socket.id);
+// Функция проверки, двигается ли игрок
+const isPlayerStationary = (player) => {
+  return (
+    player.position[0] === player.previousPosition[0] &&
+    player.position[1] === player.previousPosition[1] &&
+    player.position[2] === player.previousPosition[2]
+  );
+};
 
-  // Инициализация нового игрока
+// Обрабатываем подключения
+io.on('connection', (socket) => {
+  console.log(`New client connected: ${socket.id}`);
+
+  // Добавляем нового игрока
   players[socket.id] = {
     id: socket.id,
-    position: [0, 0, 0],
-    rotation: 0,
-    animationName: 'St',
+    position: [0, 0, 0], // Изначальная позиция
+    previousPosition: [0, 0, 0], // Для проверки на движение
+    rotation: 0, // Изначальный угол поворота
+    animationName: 'St', // Изначальная анимация стояния
   };
 
   // Отправляем новому игроку данные обо всех игроках
   socket.emit('initPlayer', players[socket.id], players);
 
-  // Уведомляем всех клиентов о новом игроке
+  // Отправляем всем игрокам обновлённый список игроков с новым игроком
   socket.broadcast.emit('updatePlayers', players);
 
-  // Обработка движения игрока
+  // Обрабатываем событие перемещения игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
-      // Обновление данных игрока на сервере
-      players[socket.id] = {
-        ...players[socket.id],
-        position: data.position,
-        rotation: data.rotation,
-        animationName: data.animationName,
-      };
+      // Обновляем данные игрока на сервере
+      players[socket.id].previousPosition = players[socket.id].position; // Сохраняем предыдущую позицию для проверки
+      players[socket.id].position = data.position; // Обновляем позицию
+      players[socket.id].rotation = data.rotation; // Обновляем угол поворота
+      players[socket.id].animationName = data.animationName; // Обновляем анимацию
 
-      // Обновляем всех клиентов
+      // Проверяем, двигается ли игрок
+      if (isPlayerStationary(players[socket.id])) {
+        // Если игрок на месте, возвращаем анимацию стояния
+        players[socket.id].animationName = 'St';
+      }
+
+      // Отправляем обновлённые данные всем клиентам
       io.emit('updatePlayers', players);
     }
   });
 
-  // Обработка отключения игрока
+  // Обрабатываем отключение игрока
   socket.on('disconnect', () => {
-    console.log('Client disconnected', socket.id);
-    delete players[socket.id]; // Удаление игрока из списка
+    console.log(`Client disconnected: ${socket.id}`);
+    delete players[socket.id]; // Удаляем игрока из списка
 
-    // Обновляем всех клиентов
+    // Уведомляем всех игроков об удалении
     io.emit('updatePlayers', players);
   });
 });
 
-// Запуск сервера
+// Запускаем сервер на порту 5000 через HTTPS
 server.listen(5000, () => {
   console.log('Server is running on https://brandingsite.store:5000');
 });
