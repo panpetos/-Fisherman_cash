@@ -1,25 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-let socket;
+let socket; // Переменная для сокета
 
-const Player = ({ id, position, rotation, animationName }) => {
+// Компонент игрока
+const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  const clonedScene = scene.clone();
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
-    if (group.current) {
-      const action = actions[animationName];
-      if (action) {
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      }
+    const action = actions[animationName];
+    if (action) {
+      action.reset().fadeIn(0.5).play();
+      return () => action.fadeOut(0.5).stop();
     }
   }, [animationName, actions]);
 
@@ -31,12 +29,13 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [position, rotation]);
 
   return (
-    <group ref={group}>
-      <primitive object={clonedScene} />
+    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
+      <primitive object={scene} />
     </group>
   );
 };
 
+// Компонент камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
   const distance = 10;
@@ -60,6 +59,18 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   return null;
 };
 
+// Компонент пола
+const TexturedFloor = () => {
+  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
+  return (
+    <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
+      <planeGeometry args={[100, 100]} />
+      <meshStandardMaterial map={texture} />
+    </mesh>
+  );
+};
+
+// Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
@@ -254,8 +265,10 @@ const App = () => {
             position={players[id].position}
             rotation={players[id].rotation}
             animationName={players[id].animationName}
+            isLocalPlayer={id === socket.id}
           />
         ))}
+        <TexturedFloor />
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
@@ -279,7 +292,7 @@ const App = () => {
           fontSize: '16px',
         }}
       >
-        Забросить
+        Забросить2
       </button>
     </div>
   );
