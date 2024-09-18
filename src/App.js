@@ -1,37 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-// Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+// Компонент игрока (без анимации, только модель)
+const Player = ({ id, position, rotation, isLocalPlayer }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions } = useAnimations(animations, group);
-
-  useEffect(() => {
-    const action = actions[animationName];
-
-    if (action) {
-      // Улучшенная фильтрация недействительных треков
-      const validTracks = action._clip.tracks.filter((track) => {
-        const nodeName = track.name.split('.')[0];
-        return group.current.getObjectByName(nodeName);
-      });
-
-      if (validTracks.length > 0) {
-        // Если есть валидные треки, играем их
-        action.reset().fadeIn(0.5).play();
-        return () => action.fadeOut(0.5).stop();
-      } else {
-        console.warn(`Все треки анимации ${animationName} недействительны для игрока ${id}`);
-      }
-    }
-  }, [animationName, actions, id]);
+  const { scene } = useGLTF('/models/Player.glb'); // Используем только модель
 
   useEffect(() => {
     if (group.current) {
@@ -73,11 +52,10 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 
 // Компонент пола
 const TexturedFloor = () => {
-  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial map={texture} />
+      <meshStandardMaterial color="green" />
     </mesh>
   );
 };
@@ -88,7 +66,6 @@ const App = () => {
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState({});
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,7 +89,7 @@ const App = () => {
       console.log('Disconnected from server');
     });
 
-    // Обновление списка игроков с анимациями при изменениях
+    // Обновление игроков
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers((prevPlayers) => ({
         ...prevPlayers,
@@ -126,14 +103,12 @@ const App = () => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
-      setAnimationName(player.animationName);
       setModelsLoaded(true);
       setIsLoading(false);
       setMessage('+1 игрок');
-      setTimeout(() => setMessage(''), 2000); // Сообщение показывается на 2 секунды
+      setTimeout(() => setMessage(''), 2000);
     });
 
-    // Запрашиваем текущих игроков у сервера
     socket.emit('requestPlayers');
   };
 
@@ -158,20 +133,16 @@ const App = () => {
     setIsPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    setAnimationName('Run');
-
     // Отправляем данные об игроке на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animationName: 'Run',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('St');
     setIsPlayerMoving(false);
 
     // Обновляем состояние игрока на сервере
@@ -179,7 +150,6 @@ const App = () => {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'St',
     });
 
     stopTimeoutRef.current = setTimeout(() => {
@@ -213,16 +183,6 @@ const App = () => {
       return () => clearInterval(interval);
     }
   }, [isPlayerMoving, cameraTargetRotation]);
-
-  const handleFishing = () => {
-    setAnimationName('Fs_2');
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'Fs_2',
-    });
-  };
 
   if (!isConnected) {
     return (
@@ -289,7 +249,6 @@ const App = () => {
             id={id}
             position={players[id].position}
             rotation={players[id].rotation}
-            animationName={players[id].animationName}
             isLocalPlayer={id === socket.id}
           />
         ))}
@@ -306,21 +265,6 @@ const App = () => {
         />
       </div>
 
-      <button
-        onClick={handleFishing}
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '10px 20px',
-          fontSize: '16px',
-        }}
-      >
-        Забросить
-      </button>
-
-      {/* Отображение количества игроков и сообщения о подключении */}
       <div style={{ position: 'absolute', top: 10, left: 10, fontSize: '12px', color: 'white' }}>
         <p>Игроков: {playerCount}</p>
         <p>{message}</p>
