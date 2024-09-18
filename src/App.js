@@ -1,39 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useFBX } from '@react-three/drei';
+import { useAnimations, useFBX, useTexture } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import * as THREE from 'three';
 
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer, model }) => {
   const group = useRef();
-  const [mixer, setMixer] = useState(null);
-  const fbx = useFBX('public\models_2\T-Pose.fbx'); // Используем T-Pose как базовую модель
+  const { animations } = model;
+  const { actions } = useAnimations(animations, group);
 
-  // Локальный микшер для анимаций
+  // Локальный игрок управляет анимацией локально
   useEffect(() => {
-    const newMixer = new THREE.AnimationMixer(fbx);
-    setMixer(newMixer);
-
-    // Загрузка анимаций
-    const animations = {
-      St: useFBX('public\models_2\Idle.fbx'),
-      Run: useFBX('public\models_2\Running.fbx'),
-      Fs_2: useFBX('public\models_2\Fishing Idle.fbx'),
-    };
-
-    // Привязка анимации к модели
-    if (animationName && animations[animationName]) {
-      const action = newMixer.clipAction(animations[animationName].animations[0]);
-      action.reset().fadeIn(0.5).play();
-
-      return () => action.fadeOut(0.5).stop();
+    if (actions && animationName) {
+      const action = actions[animationName];
+      if (action) {
+        action.reset().fadeIn(0.5).play();
+        return () => action.fadeOut(0.5).stop();
+      }
     }
-  }, [animationName, fbx]);
+  }, [animationName, actions]);
 
   // Привязываем положение игрока к его анимации
   useEffect(() => {
@@ -43,13 +32,9 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
     }
   }, [position, rotation]);
 
-  useFrame((_, delta) => {
-    if (mixer) mixer.update(delta);
-  });
-
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={fbx} />
+      <primitive object={model.scene} />
     </group>
   );
 };
@@ -80,10 +65,11 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 
 // Компонент пола
 const TexturedFloor = () => {
+  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial color="#567d46" />
+      <meshStandardMaterial map={texture} />
     </mesh>
   );
 };
@@ -104,6 +90,20 @@ const App = () => {
   const [message, setMessage] = useState('');
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
+
+  // Загружаем все анимации
+  const tposeModel = useFBX('public\models_2\T-Pose.fbx');
+  const runningModel = useFBX('public\models_2\Running.fbx');
+  const idleModel = useFBX('public\models_2\Idle.fbx');
+  const fishingIdleModel = useFBX('public\models_2\Fishing Idle.fbx');
+
+  useEffect(() => {
+    // Если все модели загружены, снимаем статус загрузки
+    if (tposeModel && runningModel && idleModel && fishingIdleModel) {
+      setModelsLoaded(true);
+      setIsLoading(false);
+    }
+  }, [tposeModel, runningModel, idleModel, fishingIdleModel]);
 
   // Соединение с сервером
   const handleConnect = () => {
@@ -265,6 +265,7 @@ const App = () => {
             rotation={players[id].rotation}
             animationName={players[id].animationName}
             isLocalPlayer={id === socket.id}
+            model={runningModel} // Используем модель с анимацией бега
           />
         ))}
         <TexturedFloor />
