@@ -8,13 +8,13 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
-    // Проигрываем анимацию
+    // Проигрывание анимации при изменении
     const action = actions[animationName];
     if (action) {
       action.reset().fadeIn(0.5).play();
@@ -30,7 +30,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   }, [position, rotation]);
 
   return (
-    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
+    <group ref={group}>
       <primitive object={scene} />
     </group>
   );
@@ -94,19 +94,18 @@ const App = () => {
     socket.on('connect', () => console.log('Connected to server with id:', socket.id));
     socket.on('disconnect', () => console.log('Disconnected from server'));
 
+    // Получение данных всех игроков с сервера
     socket.on('updatePlayers', (updatedPlayers) => {
-      // Обновляем всех игроков на клиенте
       setPlayers(updatedPlayers);
     });
 
     socket.on('initPlayer', (player, allPlayers) => {
-      // Инициализируем всех игроков при подключении
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
       setModelsLoaded(true); // Модели загружены
-      setIsLoading(false); // Прекращаем отображать предзагрузку
+      setIsLoading(false); // Отключаем загрузочный экран
     });
 
     socket.emit('requestPlayers');
@@ -169,7 +168,7 @@ const App = () => {
 
   useEffect(() => {
     const updateCameraRotation = () => {
-      setCameraRotation(prev => {
+      setCameraRotation((prev) => {
         const deltaRotation = cameraTargetRotation - prev;
         const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
         const newRotation = prev + normalizedDelta * 0.1;
@@ -195,23 +194,54 @@ const App = () => {
 
   if (!isConnected) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundImage: 'url(/nebo.jpg)',
+          backgroundSize: 'cover',
+        }}
+      >
         <h1>FunFishing</h1>
-        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
+        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
+          Войти в общий сервер
+        </button>
       </div>
     );
   }
 
   if (isLoading || !modelsLoaded) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundImage: 'url(/nebo.jpg)',
+          backgroundSize: 'cover',
+        }}
+      >
         <h1>Загрузка...</h1>
       </div>
     );
   }
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+    <div
+      style={{
+        height: '100vh',
+        width: '100vw',
+        position: 'relative',
+        backgroundImage: 'url(/nebo.jpg)',
+        backgroundSize: 'cover',
+      }}
+    >
       <Canvas>
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
@@ -228,7 +258,6 @@ const App = () => {
             position={players[id].position}
             rotation={players[id].rotation}
             animationName={players[id].animationName}
-            isLocalPlayer={id === socket.id}
           />
         ))}
         <TexturedFloor />
@@ -255,7 +284,7 @@ const App = () => {
           fontSize: '16px',
         }}
       >
-        Забросить :ъ
+        Забросить
       </button>
     </div>
   );
