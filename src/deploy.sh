@@ -35,7 +35,7 @@ ssh -T root@brandingsite.store << 'EOF'
   cd Fisherman_cash/Fisherman_cash/my-multiplayer-app
   git pull origin master
   pm2 restart 5
-  echo "Деплой на сервере завершен!"
+  echo "Yes!"
 EOF
 
 # Шаг 3: Локальная сборка проекта
