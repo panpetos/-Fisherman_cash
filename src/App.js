@@ -1,8 +1,9 @@
 // App.js
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { useAnimations, Html } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -12,18 +13,18 @@ let socket;
 const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
   const group = useRef();
 
-  // Load the base model (with skin)ы
-  const { scene: modelScene } = useGLTF('/models_2/T-Pose.glb');
+  const tPoseGltf = useLoader(GLTFLoader, '/models_2/T-Pose.glb');
+  const idleGltf = useLoader(GLTFLoader, '/models_2/Idle.glb');
+  const runningGltf = useLoader(GLTFLoader, '/models_2/Running.glb');
+  const fishingGltf = useLoader(GLTFLoader, '/models_2/Fishing_idle.glb');
 
-  // Load animations separately
-  const { animations: idleAnimations } = useGLTF('/models_2/Idle.glb');
-  const { animations: runAnimations } = useGLTF('/models_2/Running.glb');
-  const { animations: fishAnimations } = useGLTF('/models_2/Fishing_idle.glb');
+  const modelScene = tPoseGltf.scene.clone();
+  const idleAnimations = idleGltf.animations;
+  const runningAnimations = runningGltf.animations;
+  const fishingAnimations = fishingGltf.animations;
 
-  // Combine all animations
-  const allAnimations = [...idleAnimations, ...runAnimations, ...fishAnimations];
+  const allAnimations = [...idleAnimations, ...runningAnimations, ...fishingAnimations];
 
-  // Apply animations to the model
   const { actions } = useAnimations(allAnimations, group);
 
   useEffect(() => {
