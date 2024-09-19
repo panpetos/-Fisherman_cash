@@ -10,7 +10,7 @@ let socket;
 // Компонент для отображения модели Running
 const PlayerModel = ({ position, rotation, isLocalPlayer }) => {
   const group = useRef();
-  const { scene } = useGLTF('/models_2/Running.glb'); // Используем модель Running
+  const { scene } = useGLTF('/models_2/T-Pose.glb'); // Используем модель Running
 
   useEffect(() => {
     if (group.current) {
