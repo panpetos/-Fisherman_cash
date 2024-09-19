@@ -1,3 +1,5 @@
+// App.js
+
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
@@ -24,7 +26,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
 
   const allAnimations = [...idleAnimations, ...runningAnimations, ...fishingAnimations];
 
-  const { actions, mixer } = useAnimations(allAnimations, group);
+  const { actions } = useAnimations(allAnimations, group);
 
   useEffect(() => {
     if (group.current) {
@@ -44,11 +46,6 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
       });
     }
   }, [animationName, actions]);
-
-  // Корректное обновление анимаций
-  useEffect(() => {
-    if (mixer) mixer.update(0.02); // Обновляем анимации каждый кадр
-  });
 
   return (
     <group ref={group} visible={true}>
@@ -222,7 +219,7 @@ const App = () => {
               rotation={players[id].rotation}
               animationName={players[id].animationName}
               isLocalPlayer={id === socket.id}
-              modelScale={modelScale} // Передача modelScale
+              modelScale={modelScale}
             />
           ))}
           <TexturedFloor />
@@ -239,20 +236,55 @@ const App = () => {
         />
       </div>
 
-      <div style={{ position: 'absolute', right: 0, top: '25%', padding: '20px' }}>
-        <div style={{ fontSize: '24px', color: 'white' }}>{message}</div>
-        <div style={{ fontSize: '24px', color: 'white' }}>Игроков: {playerCount}</div>
-        <div>
-          Масштаб:
+      <button
+        onClick={() => {
+          setAnimationName('Fishing_idle');
+          socket.emit('playerMove', {
+            id: socket.id,
+            position: playerPosition,
+            rotation: playerRotation,
+            animationName: 'Fishing_idle',
+          });
+        }}
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '10px 20px',
+          fontSize: '16px',
+        }}
+      >
+        Забросить
+      </button>
+
+      <div
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          backgroundColor: 'rgba(255, 255, 255, 0.7)',
+          padding: '10px',
+          borderRadius: '8px',
+        }}
+      >
+        <label>
+          Масштаб модели:
           <input
             type="range"
-            min={0.5}
-            max={2}
-            step={0.1}
+            min="0.1"
+            max="5"
+            step="0.1"
             value={modelScale}
             onChange={(e) => setModelScale(parseFloat(e.target.value))}
           />
-        </div>
+        </label>
+        <div>{modelScale.toFixed(1)}</div>
+      </div>
+
+      <div style={{ position: 'absolute', top: 10, left: 10, fontSize: '12px', color: 'white' }}>
+        <p>Игроков: {playerCount}</p>
+        <p>{message}</p>
       </div>
     </div>
   );
