@@ -3,14 +3,15 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import { useGLTF, useAnimations } from '@react-three/drei'; // Импортируем useGLTF и useAnimations
+import { useGLTF, useAnimations } from '@react-three/drei';
 
 let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока с анимацией
 const PlayerModel = ({ position, isLocalPlayer }) => {
   const { scene, animations } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели и анимаций
-  const { actions } = useAnimations(animations, scene); // Подключаем анимации
+  const clonedScene = scene.clone(); // Клонируем модель, чтобы каждая была уникальной
+  const { actions } = useAnimations(animations, clonedScene); // Используем анимации на клонированной модели
   const mesh = useRef();
 
   useEffect(() => {
@@ -25,7 +26,7 @@ const PlayerModel = ({ position, isLocalPlayer }) => {
     }
   }, [position, actions]);
 
-  return <primitive ref={mesh} object={scene} scale={isLocalPlayer ? 1.5 : 1} />;
+  return <primitive ref={mesh} object={clonedScene} scale={isLocalPlayer ? 1.5 : 1} />;
 };
 
 const FollowCamera = ({ playerPosition }) => {
