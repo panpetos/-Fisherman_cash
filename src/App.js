@@ -7,7 +7,6 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-// Компонент для отображения модели игрока
 const PlayerModel = ({ position, rotation, modelPath }) => {
   const group = useRef();
   const { scene: modelScene } = useGLTF(modelPath); // Загружаем модель
@@ -48,6 +47,7 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
+  // Функция подключения к серверу
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
@@ -61,10 +61,12 @@ const App = () => {
       console.log('Disconnected from server');
     });
 
+    // Получаем данные обо всех игроках и обновляем локальное состояние
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
 
+    // Инициализируем нового игрока
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
@@ -84,6 +86,7 @@ const App = () => {
     const directionAngle = Math.atan2(movementVector.x, movementVector.z);
     setPlayerRotation(directionAngle);
 
+    // Отправляем данные о движении на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -160,7 +163,7 @@ const App = () => {
               key={id}
               position={players[id].position}
               rotation={players[id].rotation}
-              modelPath="/models/newModel/scene.gltf" // Путь к вашей 3D-модели
+              modelPath="/models/newModel/scene.gltf" // Путь к модели
             />
           ))}
           <TexturedFloor />
