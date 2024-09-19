@@ -8,23 +8,21 @@ import { useGLTF } from '@react-three/drei'; // Импортируем hook дл
 let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока
-const PlayerModel = ({ position, isLocalPlayer, color }) => {
+const PlayerModel = ({ position, isLocalPlayer }) => {
   const { scene } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели
   const mesh = useRef();
 
   useEffect(() => {
     if (mesh.current) {
-      mesh.current.position.set(...position);
+      // Применяем новую позицию к модели
+      mesh.current.position.set(position[0], position[1], position[2]);
     }
   }, [position]);
-
-  // Клонируем модель, чтобы каждый игрок имел свою собственную копию
-  const playerModel = scene.clone();
 
   return (
     <primitive
       ref={mesh}
-      object={playerModel} // Используем клонированную модель
+      object={scene.clone()} // Используем клонированную модель
       scale={isLocalPlayer ? 1.5 : 1} // Масштабируем модель для местного игрока, если нужно
     />
   );
@@ -49,8 +47,8 @@ const TexturedFloor = () => {
 };
 
 const App = () => {
-  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [players, setPlayers] = useState({});
+  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Хранение позиции локального игрока
+  const [players, setPlayers] = useState({}); // Хранение всех игроков
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
@@ -74,33 +72,39 @@ const App = () => {
       setOnlinePlayers(count);
     });
 
+    // Обновление данных о всех игроках
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
 
+    // Инициализация локального игрока и всех игроков
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
       setIsLoading(false);
     });
 
+    // Запрашиваем данные о всех игроках
     socket.emit('requestPlayers');
   };
 
+  // Логика движения игрока
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(...playerPosition).add(movementVector);
 
-    setPlayerPosition(newPosition.toArray());
+    setPlayerPosition(newPosition.toArray()); // Обновляем локальную позицию игрока
 
+    // Отправляем обновленную позицию на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
     });
   };
 
+  // Логика остановки движения
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     socket.emit('playerMove', {

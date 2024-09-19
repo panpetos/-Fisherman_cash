@@ -37,10 +37,10 @@ io.on('connection', (socket) => {
   // Обновляем состояние всех игроков для новоподключенного
   socket.broadcast.emit('updatePlayers', players);
 
-  // Обновляем данные игрока
+  // Обновляем данные игрока при движении
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
-      players[socket.id].position = data.position;
+      players[socket.id].position = data.position; // Обновляем позицию игрока
       io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
     }
   });
