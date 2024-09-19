@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useFBX, useAnimations } from '@react-three/drei';
+import { useGLTF, useAnimations } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -8,71 +8,44 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 // Компонент игрока
-const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
   const group = useRef();
+  const { scene, animations } = useGLTF('/models_2/YourModel.glb');
+  const { actions } = useAnimations(animations, group);
 
-  // Загрузка модели и анимаций
-  const model = useFBX('/models_2/T-Pose.fbx');
-  const idleAnim = useFBX('/models_2/Idle.fbx');
-  const runAnim = useFBX('/models_2/Running.fbx');
-  const fishAnim = useFBX('/models_2/Fishing_Idle.fbx');
-
-  // Комбинируем все анимации
-  const { actions } = useAnimations(
-    [...idleAnim.animations, ...runAnim.animations, ...fishAnim.animations],
-    group
-  );
-
-  // Обновляем положение и поворот игрока
   useEffect(() => {
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
+      group.current.scale.set(modelScale, modelScale, modelScale);
     }
-  }, [position, rotation]);
+  }, [position, rotation, modelScale]);
 
-  // Обновляем текущую анимацию при изменении animationName
   useEffect(() => {
     if (actions && animationName && actions[animationName]) {
-      actions[animationName].reset().fadeIn(0.5).play();
-      // Останавливаем другие анимации
+      actions[animationName].reset().fadeIn(0.2).play();
       Object.keys(actions).forEach((key) => {
         if (key !== animationName && actions[key].isRunning()) {
-          actions[key].fadeOut(0.5);
+          actions[key].fadeOut(0.2);
         }
       });
     }
   }, [animationName, actions]);
 
-  // Проверяем, загрузилась ли модель
-  if (!model) return null;
-
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={model} />
+      <primitive object={scene} />
     </group>
   );
 };
 
 // Компонент камеры от третьего лица
-const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
+const FollowCamera = ({ playerPosition }) => {
   const { camera } = useThree();
-  const distance = 10;
-  const height = 5;
-  const smoothFactor = 0.05;
 
   useFrame(() => {
-    if (camera) {
-      const targetRotation = isPlayerMoving ? cameraTargetRotation : cameraRotation;
-      const currentRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
-      const offset = new Vector3(
-        -Math.sin(currentRotation) * distance,
-        height,
-        Math.cos(currentRotation) * distance
-      );
-      camera.position.copy(new Vector3(...playerPosition).add(offset));
-      camera.lookAt(new Vector3(...playerPosition));
-    }
+    camera.position.lerp(new Vector3(playerPosition[0], playerPosition[1] + 5, playerPosition[2] + 10), 0.1);
+    camera.lookAt(new Vector3(...playerPosition));
   });
 
   return null;
@@ -92,8 +65,6 @@ const TexturedFloor = () => {
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
-  const [cameraRotation, setCameraRotation] = useState(0);
-  const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
   const [animationName, setAnimationName] = useState('Idle');
   const [players, setPlayers] = useState({});
   const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
@@ -101,6 +72,7 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const [message, setMessage] = useState('');
+  const [modelScale, setModelScale] = useState(1); // Добавили состояние для масштаба модели
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
 
@@ -145,27 +117,18 @@ const App = () => {
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.2;
-    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
-    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
-    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
-    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-    const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x + rightMovement.x,
-      playerPosition[1],
-      playerPosition[2] + forwardMovement.z + rightMovement.z
-    );
+    const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
+    const newPosition = new Vector3(...playerPosition).add(movementVector);
 
     setPlayerPosition(newPosition.toArray());
-    const movementDirection = forwardMovement.clone().add(rightMovement);
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    const directionAngle = Math.atan2(movementVector.x, movementVector.z);
     setPlayerRotation(directionAngle);
-    setCameraTargetRotation(directionAngle);
     setIsLocalPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
     setAnimationName('Run');
 
-    // Отправляем данные только для других игроков
+    // Отправляем данные другим игрокам
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -188,8 +151,7 @@ const App = () => {
     });
 
     stopTimeoutRef.current = setTimeout(() => {
-      const reverseAngle = cameraRotation + Math.PI;
-      setCameraTargetRotation(reverseAngle);
+      // Действия после остановки, если нужны
     }, 1000);
   };
 
@@ -249,12 +211,7 @@ const App = () => {
         <Suspense fallback={null}>
           <ambientLight />
           <pointLight position={[10, 10, 10]} />
-          <FollowCamera
-            playerPosition={playerPosition}
-            cameraRotation={cameraRotation}
-            cameraTargetRotation={cameraTargetRotation}
-            isPlayerMoving={isLocalPlayerMoving}
-          />
+          <FollowCamera playerPosition={playerPosition} />
           {Object.keys(players).map((id) => (
             <Player
               key={id}
@@ -263,6 +220,7 @@ const App = () => {
               rotation={players[id].rotation}
               animationName={players[id].animationName}
               isLocalPlayer={id === socket.id}
+              modelScale={modelScale} // Передаем масштаб в компонент Player
             />
           ))}
           <TexturedFloor />
@@ -292,6 +250,31 @@ const App = () => {
       >
         Забросить
       </button>
+
+      {/* Контрол для регулировки масштаба модели */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          backgroundColor: 'rgba(255, 255, 255, 0.7)',
+          padding: '10px',
+          borderRadius: '8px',
+        }}
+      >
+        <label>
+          Масштаб модели:
+          <input
+            type="range"
+            min="0.1"
+            max="5"
+            step="0.1"
+            value={modelScale}
+            onChange={(e) => setModelScale(parseFloat(e.target.value))}
+          />
+        </label>
+        <div>{modelScale.toFixed(1)}</div>
+      </div>
 
       {/* Отображение количества игроков и сообщения о подключении */}
       <div style={{ position: 'absolute', top: 10, left: 10, fontSize: '12px', color: 'white' }}>
