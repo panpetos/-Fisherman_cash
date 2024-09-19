@@ -28,6 +28,9 @@ io.on('connection', (socket) => {
     position: [0, 0, 0],
   };
 
+  // Обновляем количество онлайн игроков
+  io.emit('onlinePlayers', Object.keys(players).length);
+
   // Отправляем состояние новому игроку
   socket.emit('initPlayer', players[socket.id], players);
 
@@ -47,6 +50,9 @@ io.on('connection', (socket) => {
     console.log('Игрок отключился:', socket.id);
     delete players[socket.id]; // Удаляем игрока из списка
     io.emit('updatePlayers', players); // Обновляем состояние для всех клиентов
+
+    // Обновляем количество онлайн игроков
+    io.emit('onlinePlayers', Object.keys(players).length);
   });
 });
 
