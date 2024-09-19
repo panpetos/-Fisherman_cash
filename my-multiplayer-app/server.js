@@ -1,3 +1,5 @@
+// server.js
+
 const express = require('express');
 const https = require('https');
 const fs = require('fs');
@@ -12,7 +14,7 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://eleonhrcenter.com'],
+    origin: ['https://brandingsite.store'],
     methods: ['GET', 'POST'],
   },
 });
