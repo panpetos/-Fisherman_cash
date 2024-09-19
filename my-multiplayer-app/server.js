@@ -26,6 +26,7 @@ io.on('connection', (socket) => {
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
+    rotation: 0,
   };
 
   // Отправляем состояние новому игроку
@@ -38,6 +39,7 @@ io.on('connection', (socket) => {
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id].position = data.position;
+      players[socket.id].rotation = data.rotation;
       io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
     }
   });

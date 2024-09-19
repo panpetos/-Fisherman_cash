@@ -1,25 +1,28 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Vector3, Color } from 'three';
+import { useGLTF } from '@react-three/drei';
+import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const PlayerCircle = ({ position, isLocalPlayer, color }) => {
-  const mesh = useRef();
+// Компонент для отображения модели Running
+const PlayerModel = ({ position, rotation, isLocalPlayer }) => {
+  const group = useRef();
+  const { scene } = useGLTF('/models_2/Running.glb'); // Используем модель Running
 
   useEffect(() => {
-    if (mesh.current) {
-      mesh.current.position.set(...position);
+    if (group.current) {
+      group.current.position.set(...position);
+      group.current.rotation.set(0, rotation, 0);
     }
-  }, [position]);
+  }, [position, rotation]);
 
   return (
-    <mesh ref={mesh}>
-      <circleGeometry args={[1, 32]} />
-      <meshBasicMaterial color={color} />
-    </mesh>
+    <group ref={group}>
+      <primitive object={scene} />
+    </group>
   );
 };
 
@@ -43,6 +46,7 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
+  const [playerRotation, setPlayerRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -81,10 +85,13 @@ const App = () => {
     const newPosition = new Vector3(...playerPosition).add(movementVector);
 
     setPlayerPosition(newPosition.toArray());
+    const directionAngle = Math.atan2(movementVector.x, movementVector.z);
+    setPlayerRotation(directionAngle);
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
+      rotation: directionAngle,
     });
   };
 
@@ -93,6 +100,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
+      rotation: playerRotation,
     });
   };
 
@@ -152,11 +160,11 @@ const App = () => {
           <pointLight position={[10, 10, 10]} />
           <FollowCamera playerPosition={playerPosition} />
           {Object.keys(players).map((id) => (
-            <PlayerCircle
+            <PlayerModel
               key={id}
               position={players[id].position}
+              rotation={players[id].rotation}
               isLocalPlayer={id === socket.id}
-              color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
             />
           ))}
           <TexturedFloor />
