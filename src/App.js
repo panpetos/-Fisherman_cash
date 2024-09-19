@@ -1,31 +1,31 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Vector3, Color } from 'three';
+import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import { useGLTF } from '@react-three/drei'; // Импортируем hook для загрузки моделей
+import { useGLTF, useAnimations } from '@react-three/drei'; // Импортируем useGLTF и useAnimations
 
 let socket;
 
-// Компонент для загрузки и отображения 3D модели игрока
+// Компонент для загрузки и отображения 3D модели игрока с анимацией
 const PlayerModel = ({ position, isLocalPlayer }) => {
-  const { scene } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели
+  const { scene, animations } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели и анимаций
+  const { actions } = useAnimations(animations, scene); // Подключаем анимации
   const mesh = useRef();
 
   useEffect(() => {
     if (mesh.current) {
       // Применяем новую позицию к модели
       mesh.current.position.set(position[0], position[1], position[2]);
-    }
-  }, [position]);
 
-  return (
-    <primitive
-      ref={mesh}
-      object={scene.clone()} // Используем клонированную модель
-      scale={isLocalPlayer ? 1.5 : 1} // Масштабируем модель для местного игрока, если нужно
-    />
-  );
+      // Воспроизводим анимацию (например, idle или walk)
+      if (actions['Idle']) {
+        actions['Idle'].play(); // Воспроизводим стандартную idle анимацию
+      }
+    }
+  }, [position, actions]);
+
+  return <primitive ref={mesh} object={scene} scale={isLocalPlayer ? 1.5 : 1} />;
 };
 
 const FollowCamera = ({ playerPosition }) => {
@@ -47,12 +47,12 @@ const TexturedFloor = () => {
 };
 
 const App = () => {
-  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Хранение позиции локального игрока
-  const [players, setPlayers] = useState({}); // Хранение всех игроков
+  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Позиция локального игрока
+  const [players, setPlayers] = useState({}); // Все игроки
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
-  const [onlinePlayers, setOnlinePlayers] = useState(0); // Хранение количества онлайн игроков
+  const [onlinePlayers, setOnlinePlayers] = useState(0); // Количество онлайн игроков
 
   const handleConnect = () => {
     setIsLoading(true);
