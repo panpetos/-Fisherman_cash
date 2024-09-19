@@ -1,58 +1,34 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { useAnimations } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
+// Инициализация сокета
 let socket;
 
-const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer }) => {
   const group = useRef();
 
-  // Загружаем базовую модель и анимации
-  const tPoseGltf = useLoader(GLTFLoader, '/models_2/T-Pose.glb');
-  const idleGltf = useLoader(GLTFLoader, '/models_2/Idle.glb');
-  const runningGltf = useLoader(GLTFLoader, '/models_2/Running.glb');
-  const fishingGltf = useLoader(GLTFLoader, '/models_2/Fishing_idle.glb');
-
-  const modelScene = tPoseGltf.scene.clone();
-  const idleAnimations = idleGltf.animations;
-  const runningAnimations = runningGltf.animations;
-  const fishingAnimations = fishingGltf.animations;
-
-  const allAnimations = [...idleAnimations, ...runningAnimations, ...fishingAnimations];
-
-  const { actions, mixer } = useAnimations(allAnimations, group);
+  // Загрузка моделей и анимаций
+  const gltf = useLoader(GLTFLoader, '/models_2/T-Pose.glb'); // Заменить путь к своей модели
 
   useEffect(() => {
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
-      group.current.scale.set(modelScale, modelScale, modelScale);
     }
-  }, [position, rotation, modelScale]);
+  }, [position, rotation]);
 
+  // Обработка анимаций
   useEffect(() => {
-    if (actions && animationName && actions[animationName]) {
-      actions[animationName].reset().fadeIn(0.2).play();
-      Object.keys(actions).forEach((key) => {
-        if (key !== animationName && actions[key].isRunning()) {
-          actions[key].fadeOut(0.2);
-        }
-      });
-    }
-  }, [animationName, actions]);
-
-  // Корректное обновление анимаций
-  useEffect(() => {
-    if (mixer) mixer.update(0.02); // Обновляем анимации каждый кадр
-  });
+    // Логика обработки анимаций
+  }, [animationName]);
 
   return (
-    <group ref={group} visible={true}>
-      <primitive object={modelScene} />
+    <group ref={group}>
+      <primitive object={gltf.scene.clone()} />
     </group>
   );
 };
@@ -83,44 +59,24 @@ const App = () => {
   const [animationName, setAnimationName] = useState('Idle');
   const [players, setPlayers] = useState({});
   const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
-  const [playerCount, setPlayerCount] = useState(0);
-  const [message, setMessage] = useState('');
-  const [modelScale, setModelScale] = useState(1);
-  const movementDirectionRef = useRef({ x: 0, y: 0 });
-  const stopTimeoutRef = useRef(null);
 
-  const handleConnect = () => {
-    setIsLoading(true);
-    setIsConnected(true);
+  const movementDirectionRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    // Подключаемся к серверу
     socket = io('https://brandingsite.store:5000');
 
-    socket.on('connect', () => {
-      console.log('Connected to server with id:', socket.id);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
+    // Обрабатываем получение данных о всех игроках
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
-      setPlayerCount(Object.keys(updatedPlayers).length);
-    });
-
-    socket.on('initPlayer', (player, allPlayers) => {
-      setPlayers(allPlayers);
-      setPlayerPosition(player.position);
-      setPlayerRotation(player.rotation);
-      setAnimationName(player.animationName);
-      setIsLoading(false);
-      setMessage('+1 игрок');
-      setTimeout(() => setMessage(''), 2000);
     });
 
     socket.emit('requestPlayers');
-  };
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
@@ -132,10 +88,8 @@ const App = () => {
     const directionAngle = Math.atan2(movementVector.x, movementVector.z);
     setPlayerRotation(directionAngle);
     setIsLocalPlayerMoving(true);
-    clearTimeout(stopTimeoutRef.current);
 
-    setAnimationName('Running');
-
+    // Отправляем данные о движении на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -149,66 +103,17 @@ const App = () => {
     setAnimationName('Idle');
     setIsLocalPlayerMoving(false);
 
+    // Отправляем на сервер событие остановки
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
       animationName: 'Idle',
     });
-
-    stopTimeoutRef.current = setTimeout(() => {}, 1000);
   };
 
-  if (!isConnected) {
-    return (
-      <div
-        style={{
-          height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'url(/nebo.jpg)',
-          backgroundSize: 'cover',
-        }}
-      >
-        <h1>FunFishing</h1>
-        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
-          Войти в общий сервер
-        </button>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'url(/nebo.jpg)',
-          backgroundSize: 'cover',
-        }}
-      >
-        <h1>Загрузка...</h1>
-      </div>
-    );
-  }
-
   return (
-    <div
-      style={{
-        height: '100vh',
-        width: '100vw',
-        position: 'relative',
-        backgroundImage: 'url(/nebo.jpg)',
-        backgroundSize: 'cover',
-      }}
-    >
+    <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
       <Canvas>
         <Suspense fallback={null}>
           <ambientLight />
@@ -222,7 +127,6 @@ const App = () => {
               rotation={players[id].rotation}
               animationName={players[id].animationName}
               isLocalPlayer={id === socket.id}
-              modelScale={modelScale} // Передача modelScale
             />
           ))}
           <TexturedFloor />
@@ -230,29 +134,7 @@ const App = () => {
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick
-          size={80}
-          baseColor="gray"
-          stickColor="black"
-          move={handleMove}
-          stop={handleStop}
-        />
-      </div>
-
-      <div style={{ position: 'absolute', right: 0, top: '25%', padding: '20px' }}>
-        <div style={{ fontSize: '24px', color: 'white' }}>{message}</div>
-        <div style={{ fontSize: '24px', color: 'white' }}>Игроков: {playerCount}</div>
-        <div>
-          Масштаб:
-          <input
-            type="range"
-            min={0.5}
-            max={2}
-            step={0.1}
-            value={modelScale}
-            onChange={(e) => setModelScale(parseFloat(e.target.value))}
-          />
-        </div>
+        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
     </div>
   );
