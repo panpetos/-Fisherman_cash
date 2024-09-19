@@ -19,7 +19,7 @@ const PlayerModel = ({ position, isLocalPlayer }) => {
     }
   }, [position]);
 
-  return <primitive ref={mesh} object={scene.clone()} scale={isLocalPlayer ? 1.5 : 1} />;
+  return <primitive ref={mesh} object={scene.clone()} scale={1.5} />;
 };
 
 const FollowCamera = ({ playerPosition }) => {
