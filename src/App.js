@@ -8,23 +8,23 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Player = ({ id, position, rotation, animationName, modelScale }) => {
+const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
   const group = useRef();
-  const [mixer] = useState(() => new THREE.AnimationMixer());
 
-  // Load the 3D models and animations
-  const gltf = useLoader(GLTFLoader, '/models_2/T-Pose.glb');
+  // Загружаем базовую модель и анимации
+  const tPoseGltf = useLoader(GLTFLoader, '/models_2/T-Pose.glb');
   const idleGltf = useLoader(GLTFLoader, '/models_2/Idle.glb');
   const runningGltf = useLoader(GLTFLoader, '/models_2/Running.glb');
   const fishingGltf = useLoader(GLTFLoader, '/models_2/Fishing_idle.glb');
 
-  // Clone the scene for each player
-  const modelScene = gltf.scene.clone();
+  const modelScene = tPoseGltf.scene.clone();
+  const idleAnimations = idleGltf.animations;
+  const runningAnimations = runningGltf.animations;
+  const fishingAnimations = fishingGltf.animations;
 
-  // Load animations
-  const idleAction = mixer.clipAction(idleGltf.animations[0], modelScene);
-  const runAction = mixer.clipAction(runningGltf.animations[0], modelScene);
-  const fishAction = mixer.clipAction(fishingGltf.animations[0], modelScene);
+  const allAnimations = [...idleAnimations, ...runningAnimations, ...fishingAnimations];
+
+  const { actions, mixer } = useAnimations(allAnimations, group);
 
   useEffect(() => {
     if (group.current) {
@@ -35,25 +35,23 @@ const Player = ({ id, position, rotation, animationName, modelScale }) => {
   }, [position, rotation, modelScale]);
 
   useEffect(() => {
-    if (animationName === 'Idle') {
-      runAction.stop();
-      fishAction.stop();
-      idleAction.play();
-    } else if (animationName === 'Running') {
-      idleAction.stop();
-      fishAction.stop();
-      runAction.play();
-    } else if (animationName === 'Fishing_idle') {
-      idleAction.stop();
-      runAction.stop();
-      fishAction.play();
+    if (actions && animationName && actions[animationName]) {
+      actions[animationName].reset().fadeIn(0.2).play();
+      Object.keys(actions).forEach((key) => {
+        if (key !== animationName && actions[key].isRunning()) {
+          actions[key].fadeOut(0.2);
+        }
+      });
     }
-  }, [animationName]);
+  }, [animationName, actions]);
 
-  useFrame((_, delta) => mixer.update(delta));
+  // Корректное обновление анимаций
+  useEffect(() => {
+    if (mixer) mixer.update(0.02); // Обновляем анимации каждый кадр
+  });
 
   return (
-    <group ref={group}>
+    <group ref={group} visible={true}>
       <primitive object={modelScene} />
     </group>
   );
@@ -84,10 +82,14 @@ const App = () => {
   const [playerRotation, setPlayerRotation] = useState(0);
   const [animationName, setAnimationName] = useState('Idle');
   const [players, setPlayers] = useState({});
+  const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [playerCount, setPlayerCount] = useState(0);
+  const [message, setMessage] = useState('');
   const [modelScale, setModelScale] = useState(1);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const stopTimeoutRef = useRef(null);
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -104,6 +106,7 @@ const App = () => {
 
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
+      setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
     socket.on('initPlayer', (player, allPlayers) => {
@@ -112,6 +115,8 @@ const App = () => {
       setPlayerRotation(player.rotation);
       setAnimationName(player.animationName);
       setIsLoading(false);
+      setMessage('+1 игрок');
+      setTimeout(() => setMessage(''), 2000);
     });
 
     socket.emit('requestPlayers');
@@ -126,6 +131,9 @@ const App = () => {
     setPlayerPosition(newPosition.toArray());
     const directionAngle = Math.atan2(movementVector.x, movementVector.z);
     setPlayerRotation(directionAngle);
+    setIsLocalPlayerMoving(true);
+    clearTimeout(stopTimeoutRef.current);
+
     setAnimationName('Running');
 
     socket.emit('playerMove', {
@@ -139,6 +147,7 @@ const App = () => {
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setAnimationName('Idle');
+    setIsLocalPlayerMoving(false);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -146,6 +155,8 @@ const App = () => {
       rotation: playerRotation,
       animationName: 'Idle',
     });
+
+    stopTimeoutRef.current = setTimeout(() => {}, 1000);
   };
 
   if (!isConnected) {
@@ -210,7 +221,8 @@ const App = () => {
               position={players[id].position}
               rotation={players[id].rotation}
               animationName={players[id].animationName}
-              modelScale={modelScale}
+              isLocalPlayer={id === socket.id}
+              modelScale={modelScale} // Передача modelScale
             />
           ))}
           <TexturedFloor />
@@ -218,31 +230,29 @@ const App = () => {
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+        <Joystick
+          size={80}
+          baseColor="gray"
+          stickColor="black"
+          move={handleMove}
+          stop={handleStop}
+        />
       </div>
 
-      <div
-        style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          backgroundColor: 'rgba(255, 255, 255, 0.7)',
-          padding: '10px',
-          borderRadius: '8px',
-        }}
-      >
-        <label>
-          Масштаб модели:
+      <div style={{ position: 'absolute', right: 0, top: '25%', padding: '20px' }}>
+        <div style={{ fontSize: '24px', color: 'white' }}>{message}</div>
+        <div style={{ fontSize: '24px', color: 'white' }}>Игроков: {playerCount}</div>
+        <div>
+          Масштаб:
           <input
             type="range"
-            min="0.1"
-            max="5"
-            step="0.1"
+            min={0.5}
+            max={2}
+            step={0.1}
             value={modelScale}
             onChange={(e) => setModelScale(parseFloat(e.target.value))}
           />
-        </label>
-        <div>{modelScale.toFixed(1)}</div>
+        </div>
       </div>
     </div>
   );
