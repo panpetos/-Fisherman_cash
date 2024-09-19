@@ -7,10 +7,9 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-// Компонент для отображения модели Running
-const PlayerModel = ({ position, rotation, isLocalPlayer }) => {
+const PlayerModel = ({ position, rotation, modelPath }) => {
   const group = useRef();
-  const { scene } = useGLTF('/models_2/T-Pose.glb'); // Используем модель Running
+  const { scene: modelScene } = useGLTF(modelPath);
 
   useEffect(() => {
     if (group.current) {
@@ -19,11 +18,7 @@ const PlayerModel = ({ position, rotation, isLocalPlayer }) => {
     }
   }, [position, rotation]);
 
-  return (
-    <group ref={group}>
-      <primitive object={scene} />
-    </group>
-  );
+  return <primitive ref={group} object={modelScene} />;
 };
 
 const FollowCamera = ({ playerPosition }) => {
@@ -164,7 +159,7 @@ const App = () => {
               key={id}
               position={players[id].position}
               rotation={players[id].rotation}
-              isLocalPlayer={id === socket.id}
+              modelPath="/models/player.glb" // Путь к вашей 3D-модели
             />
           ))}
           <TexturedFloor />
