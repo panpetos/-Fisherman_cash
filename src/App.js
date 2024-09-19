@@ -1,3 +1,5 @@
+// App.js
+
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
@@ -7,11 +9,22 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-// Компонент игрока
 const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models_2/YourModel.glb');
-  const { actions } = useAnimations(animations, group);
+
+  // Load the base model (with skin)ы
+  const { scene: modelScene } = useGLTF('/models_2/T-Pose.glb');
+
+  // Load animations separately
+  const { animations: idleAnimations } = useGLTF('/models_2/Idle.glb');
+  const { animations: runAnimations } = useGLTF('/models_2/Running.glb');
+  const { animations: fishAnimations } = useGLTF('/models_2/Fishing_idle.glb');
+
+  // Combine all animations
+  const allAnimations = [...idleAnimations, ...runAnimations, ...fishAnimations];
+
+  // Apply animations to the model
+  const { actions } = useAnimations(allAnimations, group);
 
   useEffect(() => {
     if (group.current) {
@@ -34,12 +47,11 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
 
   return (
     <group ref={group} visible={isLocalPlayer || id !== socket.id}>
-      <primitive object={scene} />
+      <primitive object={modelScene} />
     </group>
   );
 };
 
-// Компонент камеры от третьего лица
 const FollowCamera = ({ playerPosition }) => {
   const { camera } = useThree();
 
@@ -51,7 +63,6 @@ const FollowCamera = ({ playerPosition }) => {
   return null;
 };
 
-// Компонент пола
 const TexturedFloor = () => {
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
@@ -61,7 +72,6 @@ const TexturedFloor = () => {
   );
 };
 
-// Основной компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
@@ -72,11 +82,10 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [playerCount, setPlayerCount] = useState(0);
   const [message, setMessage] = useState('');
-  const [modelScale, setModelScale] = useState(1); // Добавили состояние для масштаба модели
+  const [modelScale, setModelScale] = useState(1);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const stopTimeoutRef = useRef(null);
 
-  // Соединение с сервером
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
@@ -90,7 +99,6 @@ const App = () => {
       console.log('Disconnected from server');
     });
 
-    // Обновление данных других игроков
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers((prevPlayers) => ({
         ...updatedPlayers,
@@ -98,7 +106,6 @@ const App = () => {
       setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
-    // Инициализация состояния игрока
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
@@ -109,11 +116,9 @@ const App = () => {
       setTimeout(() => setMessage(''), 2000);
     });
 
-    // Запрашиваем текущих игроков у сервера
     socket.emit('requestPlayers');
   };
 
-  // Движение локального игрока
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.2;
@@ -126,14 +131,13 @@ const App = () => {
     setIsLocalPlayerMoving(true);
     clearTimeout(stopTimeoutRef.current);
 
-    setAnimationName('Run');
+    setAnimationName('Running');
 
-    // Отправляем данные другим игрокам
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animationName: 'Run',
+      animationName: 'Running',
     });
   };
 
@@ -142,7 +146,6 @@ const App = () => {
     setAnimationName('Idle');
     setIsLocalPlayerMoving(false);
 
-    // Обновляем состояние игрока на сервере
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -150,12 +153,9 @@ const App = () => {
       animationName: 'Idle',
     });
 
-    stopTimeoutRef.current = setTimeout(() => {
-      // Действия после остановки, если нужны
-    }, 1000);
+    stopTimeoutRef.current = setTimeout(() => {}, 1000);
   };
 
-  // Меню с предзагрузкой
   if (!isConnected) {
     return (
       <div
@@ -178,7 +178,6 @@ const App = () => {
     );
   }
 
-  // Отображение загрузки
   if (isLoading) {
     return (
       <div
@@ -220,7 +219,7 @@ const App = () => {
               rotation={players[id].rotation}
               animationName={players[id].animationName}
               isLocalPlayer={id === socket.id}
-              modelScale={modelScale} // Передаем масштаб в компонент Player
+              modelScale={modelScale}
             />
           ))}
           <TexturedFloor />
@@ -238,7 +237,15 @@ const App = () => {
       </div>
 
       <button
-        onClick={() => setAnimationName('Fish')} // Забросить
+        onClick={() => {
+          setAnimationName('Fishing_idle');
+          socket.emit('playerMove', {
+            id: socket.id,
+            position: playerPosition,
+            rotation: playerRotation,
+            animationName: 'Fishing_idle',
+          });
+        }}
         style={{
           position: 'absolute',
           bottom: 20,
@@ -251,7 +258,6 @@ const App = () => {
         Забросить
       </button>
 
-      {/* Контрол для регулировки масштаба модели */}
       <div
         style={{
           position: 'absolute',
@@ -276,7 +282,6 @@ const App = () => {
         <div>{modelScale.toFixed(1)}</div>
       </div>
 
-      {/* Отображение количества игроков и сообщения о подключении */}
       <div style={{ position: 'absolute', top: 10, left: 10, fontSize: '12px', color: 'white' }}>
         <p>Игроков: {playerCount}</p>
         <p>{message}</p>
