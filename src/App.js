@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { useAnimations } from '@react-three/drei';
+import { useAnimations, Html } from '@react-three/drei';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -13,7 +13,6 @@ let socket;
 const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
   const group = useRef();
 
-  // Загружаем базовую модель и анимации
   const tPoseGltf = useLoader(GLTFLoader, '/models_2/T-Pose.glb');
   const idleGltf = useLoader(GLTFLoader, '/models_2/Idle.glb');
   const runningGltf = useLoader(GLTFLoader, '/models_2/Running.glb');
@@ -48,7 +47,7 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
   }, [animationName, actions]);
 
   return (
-    <group ref={group} visible={true}>
+    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
       <primitive object={modelScene} />
     </group>
   );
@@ -102,7 +101,9 @@ const App = () => {
     });
 
     socket.on('updatePlayers', (updatedPlayers) => {
-      setPlayers(updatedPlayers);
+      setPlayers((prevPlayers) => ({
+        ...updatedPlayers,
+      }));
       setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
