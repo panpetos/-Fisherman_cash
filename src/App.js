@@ -7,9 +7,10 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
+// Компонент для отображения модели игрока
 const PlayerModel = ({ position, rotation, modelPath }) => {
   const group = useRef();
-  const { scene: modelScene } = useGLTF(modelPath);
+  const { scene: modelScene } = useGLTF(modelPath); // Загружаем новую модель
 
   useEffect(() => {
     if (group.current) {
@@ -159,7 +160,7 @@ const App = () => {
               key={id}
               position={players[id].position}
               rotation={players[id].rotation}
-              modelPath="/models/player.glb" // Путь к вашей 3D-модели
+              modelPath="/models/scene.glb" // Указываем новый путь к модели
             />
           ))}
           <TexturedFloor />

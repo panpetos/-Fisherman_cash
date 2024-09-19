@@ -1,0 +1,11 @@
+Model Information:
+* title:	Fisherman
+* source:	https://sketchfab.com/3d-models/fisherman-eb9b2ac025a5492387bbe888a01bec02
+* author:	Thunder (https://sketchfab.com/thunderpwn)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Fisherman" (https://sketchfab.com/3d-models/fisherman-eb9b2ac025a5492387bbe888a01bec02) by Thunder (https://sketchfab.com/thunderpwn) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
