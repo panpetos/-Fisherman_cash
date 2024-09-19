@@ -22,6 +22,7 @@ const PlayerModel = ({ position }) => {
   return <primitive ref={mesh} object={scene.clone()} scale={1.5} />;
 };
 
+// Камера следует за игроком
 const FollowCamera = ({ playerPosition }) => {
   useFrame(({ camera }) => {
     camera.position.lerp(new Vector3(playerPosition[0], playerPosition[1] + 5, playerPosition[2] + 10), 0.1);
@@ -31,17 +32,30 @@ const FollowCamera = ({ playerPosition }) => {
   return null;
 };
 
+// Компонент для отображения пола
+const TexturedFloor = () => {
+  return (
+    <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
+      <planeGeometry args={[100, 100]} />
+      <meshBasicMaterial color="green" />
+    </mesh>
+  );
+};
+
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Локальная позиция игрока
   const [players, setPlayers] = useState({}); // Все игроки
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [onlinePlayers, setOnlinePlayers] = useState(0); // Количество онлайн игроков
 
+  // Функция для подключения к серверу
   const handleConnect = () => {
     setIsConnected(true);
-    socket = io('https://brandingsite.store:5000');
+    socket = io('https://brandingsite.store:5000'); // Подключаемся к серверу
 
+    // Когда клиент подключен к серверу
     socket.on('connect', () => {
       console.log('Подключено к серверу с id:', socket.id);
     });
@@ -62,12 +76,18 @@ const App = () => {
       setIsLoading(false);
     });
 
+    // Обновление количества онлайн игроков
+    socket.on('onlinePlayers', (count) => {
+      setOnlinePlayers(count);
+    });
+
     // Запрашиваем данные о всех игроках
     socket.emit('requestPlayers');
   };
 
   // Движение игрока
   const handleMove = ({ x, y }) => {
+    movementDirectionRef.current = { x, y };
     const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(...playerPosition).add(movementVector);
@@ -83,6 +103,7 @@ const App = () => {
 
   // Остановка движения
   const handleStop = () => {
+    movementDirectionRef.current = { x: 0, y: 0 };
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -144,14 +165,22 @@ const App = () => {
           <ambientLight />
           <pointLight position={[10, 10, 10]} />
           <FollowCamera playerPosition={playerPosition} />
+          {/* Отображение всех игроков */}
           {Object.keys(players).map((id) => (
             <PlayerModel key={id} position={players[id].position} />
           ))}
+          <TexturedFloor />
         </Suspense>
       </Canvas>
 
+      {/* Джойстик для управления игроком */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+      </div>
+
+      {/* Отображение количества онлайн игроков */}
+      <div style={{ position: 'absolute', left: 20, top: 20, color: 'white', fontSize: '18px' }}>
+        Игроков Онлайн: {onlinePlayers}
       </div>
     </div>
   );
