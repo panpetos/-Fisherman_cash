@@ -27,8 +27,6 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
 
   useEffect(() => {
     if (actions && animationName && actions[animationName]) {
-      if (actions[animationName].isRunning()) return;
-
       actions[animationName].reset().fadeIn(0.2).play();
       Object.keys(actions).forEach((key) => {
         if (key !== animationName && actions[key].isRunning()) {
@@ -38,9 +36,8 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
     }
   }, [animationName, actions]);
 
-  // Убедись, что локальный игрок отображается только для других игроков
   return (
-    <group ref={group} visible={!isLocalPlayer}>
+    <group ref={group}>
       <primitive object={modelScene} />
     </group>
   );
@@ -98,16 +95,7 @@ const App = () => {
         const newPlayers = { ...prevPlayers };
 
         Object.keys(updatedPlayers).forEach((id) => {
-          if (!newPlayers[id]) {
-            newPlayers[id] = updatedPlayers[id];
-          } else {
-            newPlayers[id] = {
-              ...newPlayers[id],
-              position: updatedPlayers[id].position,
-              rotation: updatedPlayers[id].rotation,
-              animationName: updatedPlayers[id].animationName,
-            };
-          }
+          newPlayers[id] = updatedPlayers[id];
         });
 
         Object.keys(newPlayers).forEach((id) => {
