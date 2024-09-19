@@ -54,6 +54,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [onlinePlayers, setOnlinePlayers] = useState(0); // Хранение количества онлайн игроков
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -66,6 +67,11 @@ const App = () => {
 
     socket.on('disconnect', () => {
       console.log('Disconnected from server');
+    });
+
+    // Обновление количества онлайн игроков
+    socket.on('onlinePlayers', (count) => {
+      setOnlinePlayers(count);
     });
 
     socket.on('updatePlayers', (updatedPlayers) => {
@@ -163,7 +169,6 @@ const App = () => {
               key={id}
               position={players[id].position}
               isLocalPlayer={id === socket.id}
-              color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
             />
           ))}
           <TexturedFloor />
@@ -172,6 +177,11 @@ const App = () => {
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+      </div>
+
+      {/* Отображение количества онлайн игроков */}
+      <div style={{ position: 'absolute', left: 20, top: 20, color: 'white', fontSize: '18px' }}>
+        Игроков Онлайн: {onlinePlayers}
       </div>
     </div>
   );
