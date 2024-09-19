@@ -8,13 +8,13 @@ import { useGLTF } from '@react-three/drei';
 let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока
-const PlayerModel = ({ position }) => {
+const PlayerModel = ({ position, isLocalPlayer }) => {
   const { scene } = useGLTF('/models_2/T-Pose.glb'); // Загружаем модель
   const mesh = useRef();
 
   useEffect(() => {
     if (mesh.current) {
-      // Устанавливаем новую позицию модели
+      // Применяем новую позицию к модели
       mesh.current.position.set(position[0], position[1], position[2]);
     }
   }, [position]);
@@ -43,7 +43,7 @@ const TexturedFloor = () => {
 };
 
 const App = () => {
-  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Локальная позиция игрока
+  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Позиция локального игрока
   const [players, setPlayers] = useState({}); // Все игроки
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -87,7 +87,6 @@ const App = () => {
 
   // Движение игрока
   const handleMove = ({ x, y }) => {
-    movementDirectionRef.current = { x, y };
     const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(...playerPosition).add(movementVector);
@@ -103,7 +102,6 @@ const App = () => {
 
   // Остановка движения
   const handleStop = () => {
-    movementDirectionRef.current = { x: 0, y: 0 };
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
