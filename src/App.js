@@ -1,5 +1,3 @@
-// App.js
-
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
@@ -11,19 +9,12 @@ let socket;
 
 const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
   const group = useRef();
-
-  // Load the base model (with skin)ы
   const { scene: modelScene } = useGLTF('/models_2/T-Pose.glb');
-
-  // Load animations separately
   const { animations: idleAnimations } = useGLTF('/models_2/Idle.glb');
   const { animations: runAnimations } = useGLTF('/models_2/Running.glb');
   const { animations: fishAnimations } = useGLTF('/models_2/Fishing_idle.glb');
 
-  // Combine all animations
   const allAnimations = [...idleAnimations, ...runAnimations, ...fishAnimations];
-
-  // Apply animations to the model
   const { actions } = useAnimations(allAnimations, group);
 
   useEffect(() => {
@@ -36,6 +27,8 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
 
   useEffect(() => {
     if (actions && animationName && actions[animationName]) {
+      if (actions[animationName].isRunning()) return;
+
       actions[animationName].reset().fadeIn(0.2).play();
       Object.keys(actions).forEach((key) => {
         if (key !== animationName && actions[key].isRunning()) {
@@ -100,9 +93,30 @@ const App = () => {
     });
 
     socket.on('updatePlayers', (updatedPlayers) => {
-      setPlayers((prevPlayers) => ({
-        ...updatedPlayers,
-      }));
+      setPlayers((prevPlayers) => {
+        const newPlayers = { ...prevPlayers };
+
+        Object.keys(updatedPlayers).forEach((id) => {
+          if (!newPlayers[id]) {
+            newPlayers[id] = updatedPlayers[id];
+          } else {
+            newPlayers[id] = {
+              ...newPlayers[id],
+              position: updatedPlayers[id].position,
+              rotation: updatedPlayers[id].rotation,
+              animationName: updatedPlayers[id].animationName,
+            };
+          }
+        });
+
+        Object.keys(newPlayers).forEach((id) => {
+          if (!updatedPlayers[id]) {
+            delete newPlayers[id];
+          }
+        });
+
+        return newPlayers;
+      });
       setPlayerCount(Object.keys(updatedPlayers).length);
     });
 
@@ -227,13 +241,7 @@ const App = () => {
       </Canvas>
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick
-          size={80}
-          baseColor="gray"
-          stickColor="black"
-          move={handleMove}
-          stop={handleStop}
-        />
+        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
 
       <button

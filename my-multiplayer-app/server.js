@@ -11,7 +11,7 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'], // Добавили ваш клиентский домен
+    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'],
     methods: ['GET', 'POST'],
   },
 });
@@ -21,7 +21,6 @@ const players = {};
 io.on('connection', (socket) => {
   console.log('New client connected', socket.id);
 
-  // Инициализируем нового игрока
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
@@ -29,13 +28,10 @@ io.on('connection', (socket) => {
     animationName: 'Idle',
   };
 
-  // Отправляем состояние текущему игроку
   socket.emit('initPlayer', players[socket.id], players);
+  socket.broadcast.emit('newPlayer', players[socket.id]);
+  socket.broadcast.emit('updatePlayers', players);
 
-  // Передаем обновления всем игрокам, включая подключившегося
-  io.emit('updatePlayers', players);
-
-  // Обновляем данные игрока и передаем их всем
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id] = {
@@ -45,12 +41,10 @@ io.on('connection', (socket) => {
         animationName: data.animationName,
       };
 
-      // Передаем обновленные данные всем игрокам
       io.emit('updatePlayers', players);
     }
   });
 
-  // Удаляем игрока при отключении
   socket.on('disconnect', () => {
     console.log('Client disconnected', socket.id);
     delete players[socket.id];
