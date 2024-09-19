@@ -38,8 +38,9 @@ const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelSca
     }
   }, [animationName, actions]);
 
+  // Убедись, что локальный игрок отображается только для других игроков
   return (
-    <group ref={group} visible={isLocalPlayer || id !== socket.id}>
+    <group ref={group} visible={!isLocalPlayer}>
       <primitive object={modelScene} />
     </group>
   );
