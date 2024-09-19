@@ -4,6 +4,9 @@
 TELEGRAM_BOT_TOKEN="7116339146:AAHThGMs_UDxGxw2dxsIDluB7r3ZjO8ZOyI"
 TELEGRAM_CHAT_ID="435740601"
 
+# Пароль для подключения к серверу
+SERVER_PASSWORD="JBe45R%b*6If"
+
 # Получение текущего времени по МСК
 CURRENT_TIME=$(TZ="Europe/Moscow" date -d "+3 hours" +"%H:%M")
 
@@ -30,7 +33,17 @@ git add .
 git commit -m "$1"
 git push origin master
 
-# Шаг 2: SSH подключение и деплой на сервере
+# Шаг 2: Запрос пароля у пользователя перед SSH-доступом
+read -sp "Введите пароль для доступа к серверу: " INPUT_PASSWORD
+echo # Новая строка для ввода после скрытого пароля
+
+# Проверка правильности введённого пароля
+if [ "$INPUT_PASSWORD" != "$SERVER_PASSWORD" ]; then
+  echo "Неверный пароль. Операция отменена."
+  exit 1
+fi
+
+# Шаг 3: SSH подключение и деплой на сервере
 ssh -T root@brandingsite.store << 'EOF'
   cd Fisherman_cash/Fisherman_cash/my-multiplayer-app
   git pull origin master
@@ -38,16 +51,16 @@ ssh -T root@brandingsite.store << 'EOF'
   echo "Деплой на сервере завершен!"
 EOF
 
-# Шаг 3: Локальная сборка проекта
+# Шаг 4: Локальная сборка проекта
 npm run build
 
-# Шаг 4: Деплой на Netlify
+# Шаг 5: Деплой на Netlify
 netlify deploy --prod --dir=build
 
 # Сообщение об успешном завершении
 echo "Все этапы деплоя завершены!"
 
-# Шаг 5: Уведомление в Telegram
+# Шаг 6: Уведомление в Telegram
 curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
     -d chat_id="${TELEGRAM_CHAT_ID}" \
     -d text="${ENCODED_MESSAGE}"
