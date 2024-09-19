@@ -22,24 +22,22 @@ const players = {}; // Хранение данных о всех игроках
 io.on('connection', (socket) => {
   console.log('Новый игрок подключился:', socket.id);
 
-  // Инициализируем нового игрока
+  // Инициализируем нового игрока с дефолтной позицией
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
-    rotation: 0,
   };
 
-  // Отправляем новому игроку его данные и всех других игроков
+  // Отправляем состояние новому игроку
   socket.emit('initPlayer', players[socket.id], players);
 
-  // Сообщаем всем игрокам о новом игроке
+  // Обновляем состояние всех игроков для новоподключенного
   socket.broadcast.emit('updatePlayers', players);
 
-  // Обработка движения игрока
+  // Обновляем данные игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id].position = data.position;
-      players[socket.id].rotation = data.rotation;
       io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
     }
   });
