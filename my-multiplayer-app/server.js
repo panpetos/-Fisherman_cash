@@ -1,10 +1,7 @@
-// server.js
-
 const express = require('express');
 const https = require('https');
 const fs = require('fs');
 const socketIo = require('socket.io');
-const cors = require('cors');
 
 const privateKey = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/privkey.pem', 'utf8');
 const certificate = fs.readFileSync('/etc/letsencrypt/live/brandingsite.store-0001/fullchain.pem', 'utf8');
@@ -14,7 +11,7 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://brandingsite.store'],
+    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'], // Добавили ваш клиентский домен
     methods: ['GET', 'POST'],
   },
 });
