@@ -9,7 +9,7 @@ let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока
 const PlayerModel = ({ position, isLocalPlayer, color }) => {
-  const model = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели
+  const { scene } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели
   const mesh = useRef();
 
   useEffect(() => {
@@ -18,10 +18,13 @@ const PlayerModel = ({ position, isLocalPlayer, color }) => {
     }
   }, [position]);
 
+  // Клонируем модель, чтобы каждый игрок имел свою собственную копию
+  const playerModel = scene.clone();
+
   return (
     <primitive
       ref={mesh}
-      object={model.scene} // Используем загруженную сцену модели
+      object={playerModel} // Используем клонированную модель
       scale={isLocalPlayer ? 1.5 : 1} // Масштабируем модель для местного игрока, если нужно
     />
   );
