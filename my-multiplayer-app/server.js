@@ -28,20 +28,17 @@ io.on('connection', (socket) => {
     position: [0, 0, 0],
   };
 
-  // Обновляем количество онлайн игроков
-  io.emit('onlinePlayers', Object.keys(players).length);
-
   // Отправляем состояние новому игроку
   socket.emit('initPlayer', players[socket.id], players);
 
-  // Обновляем состояние всех игроков для новоподключенного
-  socket.broadcast.emit('updatePlayers', players);
+  // Обновляем состояние для всех игроков
+  io.emit('updatePlayers', players);
 
   // Обновляем данные игрока при движении
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id].position = data.position; // Обновляем позицию игрока
-      io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
+      io.emit('updatePlayers', players); // Передаём обновлённые данные всем игрокам
     }
   });
 
@@ -50,9 +47,6 @@ io.on('connection', (socket) => {
     console.log('Игрок отключился:', socket.id);
     delete players[socket.id]; // Удаляем игрока из списка
     io.emit('updatePlayers', players); // Обновляем состояние для всех клиентов
-
-    // Обновляем количество онлайн игроков
-    io.emit('onlinePlayers', Object.keys(players).length);
   });
 });
 
