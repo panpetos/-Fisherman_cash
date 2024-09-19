@@ -1,15 +1,13 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Vector3 } from 'three';
+import { Vector3, Color } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import { useGLTF } from '@react-three/drei';
 
 let socket;
 
-// Компонент для загрузки и отображения 3D модели игрока
-const PlayerModel = ({ position, isLocalPlayer }) => {
-  const { scene } = useGLTF('/models_2/T-Pose.glb'); // Загружаем модель
+// Компонент для отображения игрока как сферы
+const PlayerSphere = ({ position, isLocalPlayer, color }) => {
   const mesh = useRef();
 
   useEffect(() => {
@@ -19,7 +17,12 @@ const PlayerModel = ({ position, isLocalPlayer }) => {
     }
   }, [position]);
 
-  return <primitive ref={mesh} object={scene.clone()} scale={1.5} />;
+  return (
+    <mesh ref={mesh}>
+      <sphereGeometry args={[1, 32, 32]} /> {/* Шарик радиусом 1 */}
+      <meshBasicMaterial color={isLocalPlayer ? 'blue' : color} /> {/* Локальный игрок — синий, остальные — случайный цвет */}
+    </mesh>
+  );
 };
 
 // Камера следует за игроком
@@ -47,8 +50,8 @@ const App = () => {
   const [players, setPlayers] = useState({}); // Все игроки
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [onlinePlayers, setOnlinePlayers] = useState(0); // Количество онлайн игроков
+  const colors = useRef({}); // Сохраняем уникальные цвета для каждого игрока
 
   // Функция для подключения к серверу
   const handleConnect = () => {
@@ -66,6 +69,12 @@ const App = () => {
 
     // Обновляем состояние всех игроков при получении данных от сервера
     socket.on('updatePlayers', (updatedPlayers) => {
+      // Если есть новые игроки, генерируем для них случайные цвета
+      Object.keys(updatedPlayers).forEach((id) => {
+        if (!colors.current[id]) {
+          colors.current[id] = new Color(Math.random(), Math.random(), Math.random());
+        }
+      });
       setPlayers(updatedPlayers);
     });
 
@@ -165,7 +174,12 @@ const App = () => {
           <FollowCamera playerPosition={playerPosition} />
           {/* Отображение всех игроков */}
           {Object.keys(players).map((id) => (
-            <PlayerModel key={id} position={players[id].position} />
+            <PlayerSphere
+              key={id}
+              position={players[id].position}
+              isLocalPlayer={id === socket.id}
+              color={colors.current[id]} // Уникальный цвет для каждого игрока
+            />
           ))}
           <TexturedFloor />
         </Suspense>
