@@ -3,36 +3,23 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import { useGLTF, useAnimations } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 
 let socket;
 
-// Компонент для загрузки и отображения 3D модели игрока с анимацией
-const PlayerModel = ({ position, isLocalPlayer, isMoving }) => {
-  const { scene, animations } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели и анимаций
-  const clonedScene = scene.clone(); // Клонируем модель, чтобы каждая была уникальной
-  const { actions } = useAnimations(animations, clonedScene); // Используем анимации на клонированной модели
+// Компонент для загрузки и отображения 3D модели игрока
+const PlayerModel = ({ position, isLocalPlayer }) => {
+  const { scene } = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели
   const mesh = useRef();
 
   useEffect(() => {
     if (mesh.current) {
       // Применяем новую позицию к модели
       mesh.current.position.set(position[0], position[1], position[2]);
-
-      // Воспроизведение анимации в зависимости от состояния движения
-      if (isMoving) {
-        if (actions['Walking']) {
-          actions['Walking'].play(); // Воспроизводим анимацию Walking, если персонаж двигается
-        }
-      } else {
-        if (actions['Idle']) {
-          actions['Idle'].play(); // Воспроизводим Idle, если персонаж стоит на месте
-        }
-      }
     }
-  }, [position, isMoving, actions]);
+  }, [position]);
 
-  return <primitive ref={mesh} object={clonedScene} scale={isLocalPlayer ? 1.5 : 1} />;
+  return <primitive ref={mesh} object={scene.clone()} scale={isLocalPlayer ? 1.5 : 1} />;
 };
 
 const FollowCamera = ({ playerPosition }) => {
@@ -58,7 +45,6 @@ const App = () => {
   const [players, setPlayers] = useState({}); // Все игроки
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [isMoving, setIsMoving] = useState(false); // Флаг, указывающий на движение игрока
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [onlinePlayers, setOnlinePlayers] = useState(0); // Количество онлайн игроков
 
@@ -98,7 +84,6 @@ const App = () => {
 
   // Логика движения игрока
   const handleMove = ({ x, y }) => {
-    setIsMoving(true); // Устанавливаем флаг движения в true
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
@@ -115,7 +100,6 @@ const App = () => {
 
   // Логика остановки движения
   const handleStop = () => {
-    setIsMoving(false); // Устанавливаем флаг движения в false
     movementDirectionRef.current = { x: 0, y: 0 };
     socket.emit('playerMove', {
       id: socket.id,
@@ -183,7 +167,6 @@ const App = () => {
               key={id}
               position={players[id].position}
               isLocalPlayer={id === socket.id}
-              isMoving={id === socket.id ? isMoving : true} // Установка состояния движения для других игроков
             />
           ))}
           <TexturedFloor />
