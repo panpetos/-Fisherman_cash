@@ -3,10 +3,13 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Vector3, Color } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
+import { useGLTF } from '@react-three/drei'; // Импортируем hook для загрузки моделей
 
 let socket;
 
-const PlayerCircle = ({ position, isLocalPlayer, color }) => {
+// Компонент для загрузки и отображения 3D модели игрока
+const PlayerModel = ({ position, isLocalPlayer, color }) => {
+  const model = useGLTF('/models_2/T-Pose.glb'); // Загрузка модели
   const mesh = useRef();
 
   useEffect(() => {
@@ -16,10 +19,11 @@ const PlayerCircle = ({ position, isLocalPlayer, color }) => {
   }, [position]);
 
   return (
-    <mesh ref={mesh}>
-      <circleGeometry args={[1, 32]} />
-      <meshBasicMaterial color={color} />
-    </mesh>
+    <primitive
+      ref={mesh}
+      object={model.scene} // Используем загруженную сцену модели
+      scale={isLocalPlayer ? 1.5 : 1} // Масштабируем модель для местного игрока, если нужно
+    />
   );
 };
 
@@ -152,7 +156,7 @@ const App = () => {
           <pointLight position={[10, 10, 10]} />
           <FollowCamera playerPosition={playerPosition} />
           {Object.keys(players).map((id) => (
-            <PlayerCircle
+            <PlayerModel
               key={id}
               position={players[id].position}
               isLocalPlayer={id === socket.id}
