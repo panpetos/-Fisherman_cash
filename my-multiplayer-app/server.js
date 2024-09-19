@@ -12,7 +12,7 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'], // Разрешенные домены
+    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'],
     methods: ['GET', 'POST'],
   },
 });
@@ -22,44 +22,31 @@ const players = {}; // Хранение данных о всех игроках
 io.on('connection', (socket) => {
   console.log('Новый игрок подключился:', socket.id);
 
-  // Инициализируем нового игрока с дефолтными значениями
+  // Инициализируем нового игрока с дефолтной позицией
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
-    rotation: 0,
-    animationName: 'Idle', // Начальная анимация
   };
 
   // Отправляем состояние новому игроку
   socket.emit('initPlayer', players[socket.id], players);
 
-  // Сообщаем всем остальным игрокам о новом подключившемся игроке
-  socket.broadcast.emit('newPlayer', players[socket.id]);
+  // Обновляем состояние всех игроков для новоподключенного
+  socket.broadcast.emit('updatePlayers', players);
 
-  // Когда игрок движется, обновляем его состояние и отправляем это всем
+  // Обновляем данные игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
-      players[socket.id] = {
-        ...players[socket.id],
-        position: data.position,
-        rotation: data.rotation,
-        animationName: data.animationName,
-      };
-
-      // Обновляем данные всех игроков
-      io.emit('updatePlayers', players);
+      players[socket.id].position = data.position;
+      io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
     }
   });
 
   // Удаление игрока при отключении
   socket.on('disconnect', () => {
     console.log('Игрок отключился:', socket.id);
-
-    // Удаляем игрока из списка
-    delete players[socket.id];
-
-    // Сообщаем всем остальным игрокам, что игрок отключился
-    io.emit('updatePlayers', players);
+    delete players[socket.id]; // Удаляем игрока из списка
+    io.emit('updatePlayers', players); // Обновляем состояние для всех клиентов
   });
 });
 

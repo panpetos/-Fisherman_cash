@@ -1,52 +1,30 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations } from '@react-three/drei';
-import { Vector3 } from 'three';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Vector3, Color } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Player = ({ id, position, rotation, animationName, isLocalPlayer, modelScale }) => {
-  const group = useRef();
-  const { scene: modelScene } = useGLTF('/models_2/T-Pose.glb');
-  const { animations: idleAnimations } = useGLTF('/models_2/Idle.glb');
-  const { animations: runAnimations } = useGLTF('/models_2/Running.glb');
-  const { animations: fishAnimations } = useGLTF('/models_2/Fishing_idle.glb');
-
-  const allAnimations = [...idleAnimations, ...runAnimations, ...fishAnimations];
-  const { actions } = useAnimations(allAnimations, group);
+const PlayerCircle = ({ position, isLocalPlayer, color }) => {
+  const mesh = useRef();
 
   useEffect(() => {
-    if (group.current) {
-      group.current.position.set(...position);
-      group.current.rotation.set(0, rotation, 0);
-      group.current.scale.set(modelScale, modelScale, modelScale);
+    if (mesh.current) {
+      mesh.current.position.set(...position);
     }
-  }, [position, rotation, modelScale]);
-
-  useEffect(() => {
-    if (actions && animationName && actions[animationName]) {
-      actions[animationName].reset().fadeIn(0.2).play();
-      Object.keys(actions).forEach((key) => {
-        if (key !== animationName && actions[key].isRunning()) {
-          actions[key].fadeOut(0.2);
-        }
-      });
-    }
-  }, [animationName, actions]);
+  }, [position]);
 
   return (
-    <group ref={group}>
-      <primitive object={modelScene} />
-    </group>
+    <mesh ref={mesh}>
+      <circleGeometry args={[1, 32]} />
+      <meshBasicMaterial color={color} />
+    </mesh>
   );
 };
 
 const FollowCamera = ({ playerPosition }) => {
-  const { camera } = useThree();
-
-  useFrame(() => {
+  useFrame(({ camera }) => {
     camera.position.lerp(new Vector3(playerPosition[0], playerPosition[1] + 5, playerPosition[2] + 10), 0.1);
     camera.lookAt(new Vector3(...playerPosition));
   });
@@ -58,24 +36,17 @@ const TexturedFloor = () => {
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial color="green" />
+      <meshBasicMaterial color="green" />
     </mesh>
   );
 };
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('Idle');
   const [players, setPlayers] = useState({});
-  const [isLocalPlayerMoving, setIsLocalPlayerMoving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [playerCount, setPlayerCount] = useState(0);
-  const [message, setMessage] = useState('');
-  const [modelScale, setModelScale] = useState(1);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
-  const stopTimeoutRef = useRef(null);
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -91,32 +62,13 @@ const App = () => {
     });
 
     socket.on('updatePlayers', (updatedPlayers) => {
-      setPlayers((prevPlayers) => {
-        const newPlayers = { ...prevPlayers };
-
-        Object.keys(updatedPlayers).forEach((id) => {
-          newPlayers[id] = updatedPlayers[id];
-        });
-
-        Object.keys(newPlayers).forEach((id) => {
-          if (!updatedPlayers[id]) {
-            delete newPlayers[id];
-          }
-        });
-
-        return newPlayers;
-      });
-      setPlayerCount(Object.keys(updatedPlayers).length);
+      setPlayers(updatedPlayers);
     });
 
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
-      setPlayerRotation(player.rotation);
-      setAnimationName(player.animationName);
       setIsLoading(false);
-      setMessage('+1 игрок');
-      setTimeout(() => setMessage(''), 2000);
     });
 
     socket.emit('requestPlayers');
@@ -124,39 +76,24 @@ const App = () => {
 
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
-    const movementSpeed = 0.2;
+    const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(...playerPosition).add(movementVector);
 
     setPlayerPosition(newPosition.toArray());
-    const directionAngle = Math.atan2(movementVector.x, movementVector.z);
-    setPlayerRotation(directionAngle);
-    setIsLocalPlayerMoving(true);
-    clearTimeout(stopTimeoutRef.current);
-
-    setAnimationName('Running');
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle,
-      animationName: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('Idle');
-    setIsLocalPlayerMoving(false);
-
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'Idle',
     });
-
-    stopTimeoutRef.current = setTimeout(() => {}, 1000);
   };
 
   if (!isConnected) {
@@ -215,14 +152,11 @@ const App = () => {
           <pointLight position={[10, 10, 10]} />
           <FollowCamera playerPosition={playerPosition} />
           {Object.keys(players).map((id) => (
-            <Player
+            <PlayerCircle
               key={id}
-              id={id}
               position={players[id].position}
-              rotation={players[id].rotation}
-              animationName={players[id].animationName}
               isLocalPlayer={id === socket.id}
-              modelScale={modelScale}
+              color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
             />
           ))}
           <TexturedFloor />
@@ -231,57 +165,6 @@ const App = () => {
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
-      </div>
-
-      <button
-        onClick={() => {
-          setAnimationName('Fishing_idle');
-          socket.emit('playerMove', {
-            id: socket.id,
-            position: playerPosition,
-            rotation: playerRotation,
-            animationName: 'Fishing_idle',
-          });
-        }}
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          padding: '10px 20px',
-          fontSize: '16px',
-        }}
-      >
-        Забросить
-      </button>
-
-      <div
-        style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          backgroundColor: 'rgba(255, 255, 255, 0.7)',
-          padding: '10px',
-          borderRadius: '8px',
-        }}
-      >
-        <label>
-          Масштаб модели:
-          <input
-            type="range"
-            min="0.1"
-            max="5"
-            step="0.1"
-            value={modelScale}
-            onChange={(e) => setModelScale(parseFloat(e.target.value))}
-          />
-        </label>
-        <div>{modelScale.toFixed(1)}</div>
-      </div>
-
-      <div style={{ position: 'absolute', top: 10, left: 10, fontSize: '12px', color: 'white' }}>
-        <p>Игроков: {playerCount}</p>
-        <p>{message}</p>
       </div>
     </div>
   );
