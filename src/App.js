@@ -1,28 +1,44 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Vector3, Color } from 'three';
+import { Vector3, Euler } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
+import { useGLTF, useAnimations } from '@react-three/drei';
 
 let socket;
 
-// Компонент для отображения игрока как сферы
-const PlayerSphere = ({ position, isLocalPlayer, color }) => {
+// Компонент для загрузки и отображения 3D модели игрока с анимациями
+const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
+  const { scene, animations } = useGLTF('/models/newModel/Player.glb'); // Загрузка модели
+  const { actions } = useAnimations(animations, scene); // Используем анимации модели
   const mesh = useRef();
 
+  // Логика для переключения анимаций и направления модели
   useEffect(() => {
     if (mesh.current) {
-      // Применяем новую позицию к модели
+      // Обновление позиции модели
       mesh.current.position.set(position[0], position[1], position[2]);
-    }
-  }, [position]);
 
-  return (
-    <mesh ref={mesh}>
-      <sphereGeometry args={[1, 32, 32]} /> {/* Шарик радиусом 1 */}
-      <meshBasicMaterial color={isLocalPlayer ? 'blue' : color} /> {/* Локальный игрок — синий, остальные — случайный цвет */}
-    </mesh>
-  );
+      // Если есть движение, включаем анимацию "Running", иначе - "Idle"
+      if (movementDirection.x !== 0 || movementDirection.y !== 0) {
+        // Воспроизводим анимацию бега
+        if (actions['Running']) {
+          actions['Running'].play();
+        }
+
+        // Направляем персонажа в сторону движения
+        const angle = Math.atan2(movementDirection.x, movementDirection.y);
+        mesh.current.rotation.set(0, angle, 0);
+      } else {
+        // Воспроизводим анимацию ожидания (Idle)
+        if (actions['Idle']) {
+          actions['Idle'].play();
+        }
+      }
+    }
+  }, [position, movementDirection, actions]);
+
+  return <primitive ref={mesh} object={scene.clone()} scale={1.5} />;
 };
 
 // Камера следует за игроком
@@ -51,7 +67,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [onlinePlayers, setOnlinePlayers] = useState(0); // Количество онлайн игроков
-  const colors = useRef({}); // Сохраняем уникальные цвета для каждого игрока
+  const [movementDirection, setMovementDirection] = useState({ x: 0, y: 0 }); // Направление движения
 
   // Функция для подключения к серверу
   const handleConnect = () => {
@@ -69,12 +85,6 @@ const App = () => {
 
     // Обновляем состояние всех игроков при получении данных от сервера
     socket.on('updatePlayers', (updatedPlayers) => {
-      // Если есть новые игроки, генерируем для них случайные цвета
-      Object.keys(updatedPlayers).forEach((id) => {
-        if (!colors.current[id]) {
-          colors.current[id] = new Color(Math.random(), Math.random(), Math.random());
-        }
-      });
       setPlayers(updatedPlayers);
     });
 
@@ -96,6 +106,7 @@ const App = () => {
 
   // Движение игрока
   const handleMove = ({ x, y }) => {
+    setMovementDirection({ x, y }); // Обновляем направление движения
     const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(...playerPosition).add(movementVector);
@@ -111,6 +122,7 @@ const App = () => {
 
   // Остановка движения
   const handleStop = () => {
+    setMovementDirection({ x: 0, y: 0 }); // Сбрасываем направление движения
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -174,19 +186,19 @@ const App = () => {
           <FollowCamera playerPosition={playerPosition} />
           {/* Отображение всех игроков */}
           {Object.keys(players).map((id) => (
-            <PlayerSphere
+            <PlayerModel
               key={id}
               position={players[id].position}
               isLocalPlayer={id === socket.id}
-              color={colors.current[id]} // Уникальный цвет для каждого игрока
+              movementDirection={id === socket.id ? movementDirection : { x: 0, y: 0 }} // Передаём направление движения для других игроков
             />
           ))}
           <TexturedFloor />
         </Suspense>
       </Canvas>
 
-      {/* Джойстик для управления игроком */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
+      {/* Джойстик для управления игроком, расположен по центру внизу */}
+      <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)' }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
 
