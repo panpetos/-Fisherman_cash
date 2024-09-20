@@ -166,6 +166,31 @@ const App = () => {
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
+
+      {/* Online Players Display */}
+      <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
+        Игроков онлайн: {Object.keys(players).length}
+      </div>
+
+      {/* Button to trigger "Fishing Idle" action */}
+      <button
+        onClick={() => {
+          socket.emit('startFishingAnimation', { id: socket.id });
+        }}
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          left: 20,
+          padding: '10px 20px',
+          fontSize: '16px',
+          background: 'blue',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+        }}
+      >
+        Забросить
+      </button>
     </div>
   );
 };
