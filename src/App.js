@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber'; // Добавлен useThree
+import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber'; 
 import { Vector3, Color, TextureLoader, AnimationMixer } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { OrbitControls } from '@react-three/drei';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-extend({ OrbitControls });
+extend({});
 
 let socket;
 
@@ -16,40 +15,37 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   const animationsRef = useRef();
   const gltf = useRef();
 
-  const modelPath = '/fisherman.glb'; // Путь к модели fisherman.glb
+  const modelPath = '/fisherman.glb';
 
-  // Загрузка модели Fisherman
+  // Загрузка модели
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(modelPath, (gltfModel) => {
       gltf.current = gltfModel;
       modelRef.current.add(gltfModel.scene);
 
-      // Инициализация AnimationMixer и сохранение всех анимаций
       mixerRef.current = new AnimationMixer(gltfModel.scene);
       animationsRef.current = gltfModel.animations;
 
-      // Воспроизведение начальной анимации (Idle)
       playAnimation('Idle');
     }, undefined, (error) => {
       console.error('Ошибка загрузки модели:', error);
     });
   }, []);
 
-  // Функция для воспроизведения нужной анимации
+  // Воспроизведение анимации
   const playAnimation = (animationName, loop = true) => {
     if (!animationsRef.current || !mixerRef.current) return;
-
     const animation = animationsRef.current.find((clip) => clip.name === animationName);
     if (animation) {
       const action = mixerRef.current.clipAction(animation);
       action.reset();
-      action.setLoop(loop ? Infinity : 1); // Если анимация должна играть один раз, отключаем бесконечное повторение
+      action.setLoop(loop ? Infinity : 1);
       action.play();
     }
   };
 
-  // Обновление позиции и поворота модели
+  // Обновление позиции и поворота
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
@@ -57,14 +53,13 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     }
   }, [position, rotation]);
 
-  // Анимация и обновление AnimationMixer
+  // Обновление AnimationMixer
   useFrame((state, delta) => {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
     }
   });
 
-  // Воспроизведение новой анимации при смене состояния
   useEffect(() => {
     playAnimation(animation, animation !== 'Idle');
   }, [animation]);
@@ -72,25 +67,44 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   return <group ref={modelRef} />;
 };
 
-const FollowCamera = ({ playerPosition, playerRotation, cameraDistance }) => {
-  const { camera } = useThree(); // Используем useThree для получения доступа к камере
+const FollowCamera = ({ playerPosition, playerRotation, cameraDistance, isMoving }) => {
+  const { camera } = useThree();
+  const [rotateCamera, setRotateCamera] = useState(false);
+  const rotateTimeoutRef = useRef(null);
 
   useFrame(() => {
-    const targetPosition = new Vector3(
-      playerPosition[0] - Math.sin(playerRotation) * cameraDistance, // Поддержка расстояния камеры
-      playerPosition[1] + 5,
-      playerPosition[2] - Math.cos(playerRotation) * cameraDistance
-    );
-    camera.position.lerp(targetPosition, 0.05); // Плавное движение камеры
-    camera.lookAt(new Vector3(...playerPosition)); // Камера смотрит на персонажа
+    if (!isMoving) {
+      if (rotateCamera) {
+        const targetPosition = new Vector3(
+          playerPosition[0] - Math.sin(playerRotation) * cameraDistance,
+          playerPosition[1] + 5,
+          playerPosition[2] - Math.cos(playerRotation) * cameraDistance
+        );
+        camera.position.lerp(targetPosition, 0.05);
+        camera.lookAt(new Vector3(...playerPosition));
+      }
+    } else {
+      camera.lookAt(new Vector3(...playerPosition)); // Камера фиксирована во время движения
+    }
   });
+
+  // После остановки поворачиваем камеру через 2 секунды
+  useEffect(() => {
+    if (!isMoving) {
+      rotateTimeoutRef.current = setTimeout(() => {
+        setRotateCamera(true);
+      }, 2000);
+    } else {
+      clearTimeout(rotateTimeoutRef.current);
+      setRotateCamera(false);
+    }
+  }, [isMoving, playerRotation]);
 
   return null;
 };
 
 const TexturedFloor = () => {
-  const texture = useLoader(TextureLoader, 'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'); // Используем useLoader для загрузки текстуры
-
+  const texture = useLoader(TextureLoader, 'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -101,12 +115,13 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0); // Для отслеживания поворота игрока
+  const [playerRotation, setPlayerRotation] = useState(0); 
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [cameraDistance, setCameraDistance] = useState(10); // Регулируемое расстояние камеры
+  const [isMoving, setIsMoving] = useState(false); // Для отслеживания движения
+  const [cameraDistance, setCameraDistance] = useState(10); 
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
   // Подключение к серверу
@@ -144,27 +159,28 @@ const App = () => {
 
     // Рассчитываем угол поворота в сторону движения
     const angle = Math.atan2(-x, -y);
-    setPlayerRotation(angle); // Поворачиваем игрока в сторону движения
+    setPlayerRotation(angle); 
 
     setPlayerPosition(newPosition.toArray());
+    setIsMoving(true); // Игрок движется
 
     if (x !== 0 || y !== 0) {
       setCurrentAnimation('Running');
-    } else {
-      setCurrentAnimation('Idle');
     }
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: angle, // Передаем поворот игрока
-      animation: currentAnimation,
+      rotation: angle, 
+      animation: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
+    setIsMoving(false); // Игрок остановился
     setCurrentAnimation('Idle');
+
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
@@ -182,7 +198,7 @@ const App = () => {
       animation: animationName,
     });
 
-    // Возвращаем в состояние Idle после завершения анимации
+    // После 1 секунды возвращаемся в Idle
     setTimeout(() => {
       setCurrentAnimation('Idle');
       socket.emit('playerMove', {
@@ -191,7 +207,7 @@ const App = () => {
         rotation: playerRotation,
         animation: 'Idle',
       });
-    }, 1000); // Длительность можно настроить в зависимости от анимации
+    }, 1000);
   };
 
   if (!isConnected) {
@@ -248,7 +264,12 @@ const App = () => {
         <Suspense fallback={null}>
           <ambientLight />
           <pointLight position={[10, 10, 10]} />
-          <FollowCamera playerPosition={playerPosition} playerRotation={playerRotation} cameraDistance={cameraDistance} />
+          <FollowCamera
+            playerPosition={playerPosition}
+            playerRotation={playerRotation}
+            cameraDistance={cameraDistance}
+            isMoving={isMoving} // Передаем состояние движения
+          />
           {Object.keys(players).map((id) => (
             <Fisherman
               key={id}
