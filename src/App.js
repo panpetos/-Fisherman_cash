@@ -138,12 +138,12 @@ const App = () => {
 
     // Устанавливаем поворот игрока так, чтобы он был направлен по направлению движения
     if (y !== 0 || x !== 0) {
-      setAnimationName('Run');
+      setAnimationName('T');
       const movementDirection = forwardMovement.clone().add(rightMovement);
       const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
       setPlayerRotation(directionAngle); 
     } else {
-      setAnimationName('St');
+      setAnimationName('T');
     }
 
     // Отправляем данные движения на сервер
@@ -151,18 +151,18 @@ const App = () => {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: playerRotation,
-      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+      animationName: y !== 0 || x !== 0 ? 'T' : 'T',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('St');
+    setAnimationName('T');
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'St',
+      animationName: 'T',
     });
   };
 
@@ -178,12 +178,12 @@ const App = () => {
   }, [cameraRotation, playerPosition]);
 
   const handleFishing = () => {
-    setAnimationName('Fs_2');
+    setAnimationName('T');
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'Fs_2',
+      animationName: 'T',
     });
   };
 
