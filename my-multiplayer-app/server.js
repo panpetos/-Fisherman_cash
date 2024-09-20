@@ -12,7 +12,7 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://brandingsite.store'], // Удален 'https://eleonhrcenter.com', если не требуется
+    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'],
     methods: ['GET', 'POST'],
   },
 });
