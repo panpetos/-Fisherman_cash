@@ -11,7 +11,7 @@ const socket = io('https://brandingsite.store:5000');
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
+  const { scene, animations } = useGLTF('/models/newModel/T.glb');
   const { actions, mixer } = useAnimations(animations, group);
   
   useEffect(() => {
