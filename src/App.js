@@ -1,47 +1,50 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
-import { Joystick } from 'react-joystick-component';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
+import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу
-const socket = io('http://brandingsite.store:5000'); // Замените на свой серверный адрес
+// Подключаемся к серверу через HTTPS
+const socket = io('https://brandingsite.store:5000');
 
-// Компонент для загрузки модели игрока
-const Player = ({ position, rotation, animationName }) => {
+// Компонент для загрузки и отображения модели игрока
+const Player = ({ id, position, rotation, animationName }) => {
+  const group = useRef();
   const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions } = useAnimations(animations, scene);
-  const playerRef = useRef();
-
+  const { actions, mixer } = useAnimations(animations, group);
+  
   useEffect(() => {
-    if (actions) {
-      // Останавливаем все анимации
-      Object.values(actions).forEach(action => action.stop());
+    if (actions && animationName) {
+      const action = actions[animationName];
+      action.reset().fadeIn(0.5).play();
 
-      // Запускаем указанную анимацию
-      if (animationName && actions[animationName]) {
-        actions[animationName].play();
-      }
+      return () => {
+        action.fadeOut(0.5).stop();
+      };
     }
   }, [animationName, actions]);
 
+  useEffect(() => {
+    // Обновляем позицию и ротацию на каждом кадре
+    if (group.current) {
+      group.current.position.set(...position);
+      group.current.rotation.set(0, rotation, 0);
+    }
+  });
+
   return (
-    <primitive
-      ref={playerRef}
-      object={scene}
-      position={position}
-      rotation={[0, rotation, 0]} // Поворот персонажа
-      scale={[0.5, 0.5, 0.5]}
-    />
+    <group ref={group}>
+      <primitive object={scene} />
+    </group>
   );
 };
 
-// Компонент для камеры от третьего лица, которая следует за игроком
+// Компонент для камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
-  const { camera } = useThree(); // Получаем текущую камеру
-  const distance = 5; // Расстояние от камеры до персонажа
-  const height = 2; // Высота камеры относительно персонажа
+  const { camera } = useThree();
+  const distance = 5;
+  const height = 2;
 
   useFrame(() => {
     if (camera) {
@@ -53,14 +56,14 @@ const FollowCamera = ({ playerPosition, cameraRotation }) => {
 
       const targetPosition = new Vector3(...playerPosition).add(offset);
       camera.position.copy(targetPosition);
-      camera.lookAt(new Vector3(...playerPosition)); // Камера всегда смотрит на игрока
+      camera.lookAt(new Vector3(...playerPosition));
     }
   });
 
-  return null; // Этот компонент не рендерит свою камеру, так как управляет существующей
+  return null;
 };
 
-// Компонент для создания текстурированного пола
+// Компонент для пола
 const TexturedFloor = () => {
   const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
   
@@ -78,10 +81,8 @@ const App = () => {
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
-  const [players, setPlayers] = useState([]); // Хранение всех игроков
-  const [isMoving, setIsMoving] = useState(false);
+  const [players, setPlayers] = useState([]);
 
-  // Обработка подключения и ошибок
   useEffect(() => {
     socket.on('connect', () => {
       console.log('Connected to server with id:', socket.id);
@@ -91,19 +92,13 @@ const App = () => {
       console.log('Disconnected from server');
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
-    });
-
     socket.on('updatePlayers', (updatedPlayers) => {
-      console.log('Updated players list:', updatedPlayers);
       setPlayers(updatedPlayers);
     });
 
     return () => {
       socket.off('connect');
       socket.off('disconnect');
-      socket.off('connect_error');
       socket.off('updatePlayers');
     };
   }, []);
@@ -112,21 +107,19 @@ const App = () => {
     const { x, y } = event;
     const movementSpeed = 0.2;
 
-    // Определяем направление движения в зависимости от камеры
     const moveDirection = new Vector3(
       Math.sin(cameraRotation),
       0,
       Math.cos(cameraRotation)
     ).normalize();
 
-    // Определяем вектор движения относительно направления камеры
     const rightVector = new Vector3(
       Math.sin(cameraRotation + Math.PI / 2),
       0,
       Math.cos(cameraRotation + Math.PI / 2)
     ).normalize();
 
-    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed); // Вперёд - вниз
+    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
     const newPosition = new Vector3(
@@ -139,8 +132,9 @@ const App = () => {
 
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setIsMoving(true);
-      setPlayerRotation(Math.atan2(y, x) + 1.5); // Устанавливаем направление игрока
+      setPlayerRotation(Math.atan2(y, x) + 1.5); 
+    } else {
+      setAnimationName('St');
     }
 
     // Отправляем данные движения на сервер
@@ -148,18 +142,27 @@ const App = () => {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: Math.atan2(y, x) + 1.5,
-      animationName: 'Run',
+      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
 
   const handleStop = () => {
     setAnimationName('St');
-    setIsMoving(false);
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
       animationName: 'St',
+    });
+  };
+
+  const handleFishing = () => {
+    setAnimationName('Fs_2');
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      rotation: playerRotation,
+      animationName: 'Fs_2',
     });
   };
 
@@ -169,15 +172,27 @@ const App = () => {
         <ambientLight />
         <pointLight position={[10, 10, 10]} />
         <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
-        <Player position={playerPosition} rotation={playerRotation} animationName={animationName} />
+
+        {/* Собственная модель игрока */}
+        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
+
         <TexturedFloor />
         
-        {/* Отображаем всех других игроков */}
+        {/* Другие игроки */}
         {players.map((player) => (
-          <Player key={player.id} position={player.position} rotation={player.rotation} animationName={player.animationName} />
+          player.id !== socket.id && (
+            <Player
+              key={player.id}
+              id={player.id}
+              position={player.position}
+              rotation={player.rotation}
+              animationName={player.animationName}
+            />
+          )
         ))}
       </Canvas>
 
+      {/* Джойстик для управления персонажем */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick 
           size={80} 
@@ -188,9 +203,10 @@ const App = () => {
         />
       </div>
 
+      {/* Кнопка для заброса удочки */}
       <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
         <button 
-          onClick={() => setAnimationName('Fs_2')}
+          onClick={handleFishing}
           style={{
             width: '60px',
             height: '60px',
