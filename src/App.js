@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, extend } from '@react-three/fiber';
-import { Vector3, Color, AnimationMixer } from 'three';
+import { Canvas, useFrame, extend, useThree } from '@react-three/fiber';
+import { Vector3, Color, TextureLoader, AnimationMixer } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { OrbitControls } from '@react-three/drei';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Расширение пространства имен для использования TextGeometry
-extend({});
+extend({ OrbitControls });
 
 let socket;
 
@@ -72,54 +72,41 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   return <group ref={modelRef} />;
 };
 
-const FollowCamera = ({ playerPosition, playerRotation }) => {
-  const [cameraRotation, setCameraRotation] = useState(null);
+const FollowCamera = ({ playerPosition, playerRotation, cameraDistance }) => {
+  const { camera } = useThree();
 
-  // Камера следует за персонажем, немного ближе
-  useFrame(({ camera }, delta) => {
+  useFrame(() => {
     const targetPosition = new Vector3(
-      playerPosition[0] - Math.sin(playerRotation) * 6, // Чуть ближе к игроку
+      playerPosition[0] - Math.sin(playerRotation) * cameraDistance, // Поддержка расстояния камеры
       playerPosition[1] + 5,
-      playerPosition[2] - Math.cos(playerRotation) * 6
+      playerPosition[2] - Math.cos(playerRotation) * cameraDistance
     );
-    camera.position.lerp(targetPosition, 0.1);
-
-    if (!cameraRotation) {
-      camera.lookAt(new Vector3(...playerPosition));
-    } else {
-      camera.rotation.y = playerRotation; // Устанавливаем угол поворота камеры по оси Y
-    }
+    camera.position.lerp(targetPosition, 0.05); // Плавное движение камеры
+    camera.lookAt(new Vector3(...playerPosition)); // Камера смотрит на персонажа
   });
-
-  useEffect(() => {
-    // Когда персонаж останавливается, через секунду поворачиваем камеру в его сторону
-    if (cameraRotation === null) {
-      const timeout = setTimeout(() => {
-        setCameraRotation(playerRotation);
-      }, 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [playerRotation]);
 
   return null;
 };
 
 const TexturedFloor = () => {
+  const texture = useLoader(TextureLoader, 'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
+  
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshBasicMaterial color="green" />
+      <meshBasicMaterial map={texture} />
     </mesh>
   );
 };
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0); // Добавлено для отслеживания поворота игрока
+  const [playerRotation, setPlayerRotation] = useState(0); // Для отслеживания поворота игрока
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [cameraDistance, setCameraDistance] = useState(10); // Регулируемое расстояние камеры
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
   // Подключение к серверу
@@ -261,7 +248,7 @@ const App = () => {
         <Suspense fallback={null}>
           <ambientLight />
           <pointLight position={[10, 10, 10]} />
-          <FollowCamera playerPosition={playerPosition} playerRotation={playerRotation} />
+          <FollowCamera playerPosition={playerPosition} playerRotation={playerRotation} cameraDistance={cameraDistance} />
           {Object.keys(players).map((id) => (
             <Fisherman
               key={id}
@@ -282,6 +269,18 @@ const App = () => {
 
       <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
         Игроков онлайн: {Object.keys(players).length}
+      </div>
+
+      {/* Регулятор расстояния камеры */}
+      <div style={{ position: 'absolute', bottom: 20, left: 20, color: 'white' }}>
+        <label>Регулятор расстояния камеры:</label>
+        <input
+          type="range"
+          min="5"
+          max="20"
+          value={cameraDistance}
+          onChange={(e) => setCameraDistance(Number(e.target.value))}
+        />
       </div>
 
       <div style={{ position: 'absolute', bottom: 150, left: 20, display: 'flex', flexDirection: 'column' }}>
