@@ -9,11 +9,11 @@ let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока с анимациями
 const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
-  // Загружаем базовую модель и анимации
-  const { scene: tPoseScene } = useGLTF('/models/newModel/T.glb'); // Модель T-поза
+  // Загружаем базовую модель T-поза
+  const { scene: tPoseScene, skeleton } = useGLTF('/models/newModel/T.glb');
   const { animations: idleAnimations } = useGLTF('/models/newModel/Idle.glb'); // Анимация Idle
   const { animations: runningAnimations } = useGLTF('/models/newModel/Running.glb'); // Анимация Running
-  
+
   // Используем анимации модели
   const { actions: idleActions } = useAnimations(idleAnimations, tPoseScene);
   const { actions: runningActions } = useAnimations(runningAnimations, tPoseScene);
@@ -27,8 +27,8 @@ const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
       // Если есть движение, включаем анимацию "Running", иначе - "Idle"
       if (movementDirection.x !== 0 || movementDirection.y !== 0) {
         if (runningActions['Running']) {
-          runningActions['Running'].play();
-          idleActions['Idle']?.stop(); // Остановить Idle
+          runningActions['Running'].reset().fadeIn(0.5).play(); // Воспроизведение анимации бега
+          idleActions['Idle']?.fadeOut(0.5); // Останавливаем Idle
         }
 
         // Направляем персонажа в сторону движения
@@ -36,8 +36,8 @@ const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
         mesh.current.rotation.set(0, angle, 0);
       } else {
         if (idleActions['Idle']) {
-          idleActions['Idle'].play();
-          runningActions['Running']?.stop(); // Остановить бег
+          idleActions['Idle'].reset().fadeIn(0.5).play(); // Воспроизведение анимации ожидания
+          runningActions['Running']?.fadeOut(0.5); // Останавливаем бег
         }
       }
     }
