@@ -1,256 +1,215 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
+import { useGLTF, useAnimations } from '@react-three/drei';
 
-// Подключаемся к серверу
-const socket = io('https://brandingsite.store:5000');
+let socket;
 
-// Компонент для загрузки и отображения модели игрока
-const Player = ({ id, position, rotation, animationName }) => {
-  const group = useRef();
-  const { scene, animations } = useGLTF('/models/newModel/T.glb');
-  const { actions, mixer } = useAnimations(animations, group);
-  
-  useEffect(() => {
-    if (actions && animationName) {
-      const action = actions[animationName];
-      action.reset().fadeIn(0.5).play();
+// Компонент для загрузки и отображения 3D модели игрока с анимациями
+const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
+  // Загружаем базовую модель T-позаs
+  const { scene: tPoseScene, skeleton } = useGLTF('/models/newModel/T.glb');
+  const { animations: idleAnimations } = useGLTF('/models/newModel/Idle.glb'); // Анимация Idle
+  const { animations: runningAnimations } = useGLTF('/models/newModel/Running.glb'); // Анимация Running
 
-      return () => {
-        action.fadeOut(0.5).stop();
-      };
-    }
-  }, [animationName, actions]);
+  // Используем анимации модели
+  const { actions: idleActions } = useAnimations(idleAnimations, tPoseScene);
+  const { actions: runningActions } = useAnimations(runningAnimations, tPoseScene);
+  const mesh = useRef();
 
   useEffect(() => {
-    if (group.current) {
-      group.current.position.set(...position);
-      group.current.rotation.set(0, rotation, 0);
-    }
-  });
+    if (mesh.current) {
+      // Обновляем позицию модели
+      mesh.current.position.set(position[0], position[1], position[2]);
 
-  return (
-    <group ref={group}>
-      <primitive object={scene} />
-    </group>
-  );
+      // Если есть движение, включаем анимацию "Running", иначе - "Idle"
+      if (movementDirection.x !== 0 || movementDirection.y !== 0) {
+        if (runningActions['Running']) {
+          runningActions['Running'].reset().fadeIn(0.5).play(); // Воспроизведение анимации бега
+          idleActions['Idle']?.fadeOut(0.5); // Останавливаем Idle
+        }
+
+        // Направляем персонажа в сторону движения
+        const angle = Math.atan2(movementDirection.x, movementDirection.y);
+        mesh.current.rotation.set(0, angle, 0);
+      } else {
+        if (idleActions['Idle']) {
+          idleActions['Idle'].reset().fadeIn(0.5).play(); // Воспроизведение анимации ожидания
+          runningActions['Running']?.fadeOut(0.5); // Останавливаем бег
+        }
+      }
+    }
+  }, [position, movementDirection, idleActions, runningActions]);
+
+  return <primitive ref={mesh} object={tPoseScene.clone()} scale={1.5} />;
 };
 
-// Компонент для камеры от третьего лица
-const FollowCamera = ({ playerPosition, cameraRotation }) => {
-  const { camera } = useThree();
-  const distance = 10; // Расстояние камеры
-  const height = 5;    // Высота камеры
-
-  useFrame(() => {
-    if (camera) {
-      const offset = new Vector3(
-        -Math.sin(cameraRotation) * distance,
-        height,
-        Math.cos(cameraRotation) * distance
-      );
-
-      const targetPosition = new Vector3(...playerPosition).add(offset);
-      camera.position.copy(targetPosition);
-      camera.lookAt(new Vector3(...playerPosition));
-    }
+// Камера следует за игроком
+const FollowCamera = ({ playerPosition }) => {
+  useFrame(({ camera }) => {
+    camera.position.lerp(new Vector3(playerPosition[0], playerPosition[1] + 5, playerPosition[2] + 10), 0.1);
+    camera.lookAt(new Vector3(...playerPosition));
   });
 
   return null;
 };
 
-// Компонент для пола
+// Компонент для отображения пола
 const TexturedFloor = () => {
-  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial map={texture} />
+      <meshBasicMaterial color="green" />
     </mesh>
   );
 };
 
-// Главный компонент приложения
 const App = () => {
-  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0);
-  const [cameraRotation, setCameraRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('St');
-  const [players, setPlayers] = useState([]);
-  const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]); // Позиция локального игрока
+  const [players, setPlayers] = useState({}); // Все игроки
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [onlinePlayers, setOnlinePlayers] = useState(0); // Количество онлайн игроков
+  const [movementDirection, setMovementDirection] = useState({ x: 0, y: 0 }); // Направление движения
 
-  useEffect(() => {
+  // Функция для подключения к серверу
+  const handleConnect = () => {
+    setIsConnected(true);
+    socket = io('https://brandingsite.store:5000'); // Подключаемся к серверу
+
+    // Когда клиент подключен к серверу
     socket.on('connect', () => {
-      console.log('Connected to server with id:', socket.id);
+      console.log('Подключено к серверу с id:', socket.id);
     });
 
     socket.on('disconnect', () => {
-      console.log('Disconnected from server');
+      console.log('Отключено от сервера');
     });
 
+    // Обновляем состояние всех игроков при получении данных от сервера
     socket.on('updatePlayers', (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
 
-    return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('updatePlayers');
-    };
-  }, []);
+    // Инициализация игрока и получение данных всех игроков
+    socket.on('initPlayer', (player, allPlayers) => {
+      setPlayers(allPlayers);
+      setPlayerPosition(player.position);
+      setIsLoading(false);
+    });
 
-  const handleMove = (event) => {
-    const { x, y } = event;
-    movementDirectionRef.current = { x, y };
-    const movementSpeed = 0.2;
+    // Обновление количества онлайн игроков
+    socket.on('onlinePlayers', (count) => {
+      setOnlinePlayers(count);
+    });
 
-    // Направление камеры
-    const cameraDirection = new Vector3(
-      -Math.sin(cameraRotation),
-      0,
-      Math.cos(cameraRotation)
-    ).normalize();
+    // Запрашиваем данные о всех игроках
+    socket.emit('requestPlayers');
+  };
 
-    // Вектор вправо относительно направления камеры
-    const rightVector = new Vector3(
-      Math.cos(cameraRotation),
-      0,
-      Math.sin(cameraRotation)
-    ).normalize();
-
-    // Движение вперед-назад относительно камеры
-    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
-    // Движение влево-вправо относительно камеры
-    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-
-    // Обновление позиции игрока
-    const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x + rightMovement.x,
-      playerPosition[1],
-      playerPosition[2] + forwardMovement.z + rightMovement.z
-    );
+  // Движение игрока
+  const handleMove = ({ x, y }) => {
+    setMovementDirection({ x, y }); // Обновляем направление движения
+    const movementSpeed = 0.1;
+    const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
+    const newPosition = new Vector3(...playerPosition).add(movementVector);
 
     setPlayerPosition(newPosition.toArray());
 
-    // Устанавливаем поворот игрока так, чтобы он был направлен по направлению движения
-    if (y !== 0 || x !== 0) {
-      setAnimationName('T');
-      const movementDirection = forwardMovement.clone().add(rightMovement);
-      const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-      setPlayerRotation(directionAngle); 
-    } else {
-      setAnimationName('T');
-    }
-
-    // Отправляем данные движения на сервер
+    // Отправляем новую позицию игрока на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: playerRotation,
-      animationName: y !== 0 || x !== 0 ? 'T' : 'T',
     });
   };
 
+  // Остановка движения
   const handleStop = () => {
-    movementDirectionRef.current = { x: 0, y: 0 };
-    setAnimationName('T');
+    setMovementDirection({ x: 0, y: 0 }); // Сбрасываем направление движения
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'T',
     });
   };
 
-  // Обновляем движение, пока джойстик зажат
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
-        handleMove(movementDirectionRef.current);
-      }
-    }, 50); // интервал обновления
+  if (!isConnected) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundImage: 'url(/nebo.jpg)',
+          backgroundSize: 'cover',
+        }}
+      >
+        <h1>FunFishing</h1>
+        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
+          Войти в общий сервер
+        </button>
+      </div>
+    );
+  }
 
-    return () => clearInterval(interval);
-  }, [cameraRotation, playerPosition]);
-
-  const handleFishing = () => {
-    setAnimationName('T');
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'T',
-    });
-  };
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          width: '100vw',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundImage: 'url(/nebo.jpg)',
+          backgroundSize: 'cover',
+        }}
+      >
+        <h1>Загрузка...</h1>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
+    <div
+      style={{
+        height: '100vh',
+        width: '100vw',
+        position: 'relative',
+        backgroundImage: 'url(/nebo.jpg)',
+        backgroundSize: 'cover',
+      }}
+    >
       <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
-
-        {/* Собственная модель игрока */}
-        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
-
-        <TexturedFloor />
-        
-        {/* Другие игроки */}
-        {players.map((player) => (
-          player.id !== socket.id && (
-            <Player
-              key={player.id}
-              id={player.id}
-              position={player.position}
-              rotation={player.rotation}
-              animationName={player.animationName}
+        <Suspense fallback={null}>
+          <ambientLight />
+          <pointLight position={[10, 10, 10]} />
+          <FollowCamera playerPosition={playerPosition} />
+          {/* Отображение всех игроков */}
+          {Object.keys(players).map((id) => (
+            <PlayerModel
+              key={id}
+              position={players[id].position}
+              isLocalPlayer={id === socket.id}
+              movementDirection={id === socket.id ? movementDirection : { x: 0, y: 0 }} // Передаём направление движения для других игроков
             />
-          )
-        ))}
+          ))}
+          <TexturedFloor />
+        </Suspense>
       </Canvas>
 
-      {/* Левый джойстик для вращения камеры */}
-      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={(e) => setCameraRotation((prev) => prev + e.x * 0.05)} 
-        />
+      {/* Джойстик для управления игроком, расположен по центру внизу */}
+      <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)' }}>
+        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
 
-      {/* Правый джойстик для движения персонажа */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
-        />
-      </div>
-
-      {/* Кнопка для заброса удочки, перемещена выше */}
-      <div style={{ position: 'absolute', bottom: 100, left: 20 }}>
-        <button 
-          onClick={handleFishing}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            backgroundColor: 'blue',
-            color: 'white',
-            border: 'none',
-            fontSize: '16px',
-            cursor: 'pointer'
-          }}
-        >
-          Забросить
-        </button>
+      {/* Отображение количества онлайн игроков */}
+      <div style={{ position: 'absolute', left: 20, top: 20, color: 'white', fontSize: '18px' }}>
+        Игроков Онлайн: {onlinePlayers}
       </div>
     </div>
   );
