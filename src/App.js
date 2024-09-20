@@ -19,7 +19,7 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
   const font = new FontLoader().parse(robotoFont);
   const gltf = useRef();
 
-  const modelPath = '\public\fisherman.glb'; // Путь к модели fisherman.glb
+  const modelPath = '\fisherman.glb'; // Путь к модели fisherman.glb
 
   // Загрузка модели Fisherman
   useEffect(() => {
