@@ -1,26 +1,42 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, extend } from '@react-three/fiber';
 import { Vector3, Color } from 'three';
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry'; // Импорт TextGeometry
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader'; // Загрузчик шрифтов
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
+import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json'; // Пример шрифта
+
+// Расширение пространства имен THREE, чтобы TextGeometry был доступен в R3F
+extend({ TextGeometry });
 
 let socket;
 
 const PlayerCircle = ({ position, animation, isLocalPlayer, color }) => {
   const mesh = useRef();
+  const textMesh = useRef();
+  const font = new FontLoader().parse(robotoFont); // Загрузка шрифта
 
   useEffect(() => {
     if (mesh.current) {
       mesh.current.position.set(...position);
     }
+    if (textMesh.current) {
+      textMesh.current.position.set(position[0], position[1] + 2, position[2]); // Поднятие текста над игроком
+    }
   }, [position]);
 
   return (
-    <mesh ref={mesh}>
-      <circleGeometry args={[1, 32]} />
-      <meshBasicMaterial color={color} />
-      <textGeometry args={[animation, { size: 1, height: 0.1 }]} />
-    </mesh>
+    <>
+      <mesh ref={mesh}>
+        <circleGeometry args={[1, 32]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+      <mesh ref={textMesh}>
+        <textGeometry args={[animation, { font, size: 1, height: 0.1 }]} />
+        <meshBasicMaterial color={color} />
+      </mesh>
+    </>
   );
 };
 
