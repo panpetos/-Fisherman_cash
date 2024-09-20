@@ -6,7 +6,7 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const PlayerCircle = ({ position, isLocalPlayer, color }) => {
+const PlayerCircle = ({ position, animation, isLocalPlayer, color }) => {
   const mesh = useRef();
 
   useEffect(() => {
@@ -19,6 +19,7 @@ const PlayerCircle = ({ position, isLocalPlayer, color }) => {
     <mesh ref={mesh}>
       <circleGeometry args={[1, 32]} />
       <meshBasicMaterial color={color} />
+      <textGeometry args={[animation, { size: 1, height: 0.1 }]} />
     </mesh>
   );
 };
@@ -44,6 +45,7 @@ const TexturedFloor = () => {
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [players, setPlayers] = useState({});
+  const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
@@ -82,17 +84,35 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
+    if (x !== 0 || y !== 0) {
+      setCurrentAnimation('Running');
+    } else {
+      setCurrentAnimation('Idle');
+    }
+
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
+      animation: currentAnimation,
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
+    setCurrentAnimation('Idle');
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
+      animation: 'Idle',
+    });
+  };
+
+  const triggerAnimation = (animationName) => {
+    setCurrentAnimation(animationName);
+    socket.emit('playerMove', {
+      id: socket.id,
+      position: playerPosition,
+      animation: animationName,
     });
   };
 
@@ -155,6 +175,7 @@ const App = () => {
             <PlayerCircle
               key={id}
               position={players[id].position}
+              animation={players[id].animation || 'Idle'}
               isLocalPlayer={id === socket.id}
               color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
             />
@@ -172,25 +193,30 @@ const App = () => {
         Игроков онлайн: {Object.keys(players).length}
       </div>
 
-      {/* Button to trigger "Fishing Idle" action */}
-      <button
-        onClick={() => {
-          socket.emit('startFishingAnimation', { id: socket.id });
-        }}
-        style={{
-          position: 'absolute',
-          bottom: 100,
-          left: 20,
-          padding: '10px 20px',
-          fontSize: '16px',
-          background: 'blue',
-          color: 'white',
-          border: 'none',
-          borderRadius: '5px',
-        }}
-      >
-        Забросить
-      </button>
+      {/* Buttons for different animations */}
+      <div style={{ position: 'absolute', bottom: 150, left: 20, display: 'flex', flexDirection: 'column' }}>
+        <button onClick={() => triggerAnimation('Fishing Idle')} style={{ padding: '10px', margin: '5px' }}>
+          Рыбалка (Idle)
+        </button>
+        <button onClick={() => triggerAnimation('Fishing Cast')} style={{ padding: '10px', margin: '5px' }}>
+          Забросить удочку
+        </button>
+        <button onClick={() => triggerAnimation('Jump')} style={{ padding: '10px', margin: '5px' }}>
+          Прыжок
+        </button>
+        <button onClick={() => triggerAnimation('Jumping Down')} style={{ padding: '10px', margin: '5px' }}>
+          Прыжок вниз
+        </button>
+        <button onClick={() => triggerAnimation('Jumping Up')} style={{ padding: '10px', margin: '5px' }}>
+          Прыжок вверх
+        </button>
+        <button onClick={() => triggerAnimation('Walking')} style={{ padding: '10px', margin: '5px' }}>
+          Идти
+        </button>
+        <button onClick={() => triggerAnimation('Taking Item')} style={{ padding: '10px', margin: '5px' }}>
+          Взять предмет
+        </button>
+      </div>
     </div>
   );
 };
