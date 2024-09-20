@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, extend, useLoader } from '@react-three/fiber'; // Добавлен useLoader
+import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber'; // Добавлен useThree
 import { Vector3, Color, TextureLoader, AnimationMixer } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from '@react-three/drei';
@@ -73,7 +73,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
 };
 
 const FollowCamera = ({ playerPosition, playerRotation, cameraDistance }) => {
-  const { camera } = useThree();
+  const { camera } = useThree(); // Используем useThree для получения доступа к камере
 
   useFrame(() => {
     const targetPosition = new Vector3(
