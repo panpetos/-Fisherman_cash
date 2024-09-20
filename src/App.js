@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
-import { Vector3, Color } from 'three';
+import { Vector3, Color, AnimationMixer } from 'three';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import io from 'socket.io-client';
@@ -16,22 +16,43 @@ let socket;
 const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
   const modelRef = useRef();
   const textMesh = useRef();
+  const mixerRef = useRef();
+  const animationsRef = useRef();
+  const clockRef = useRef({ delta: 0 });
   const font = new FontLoader().parse(robotoFont);
   const gltf = useRef();
 
   const modelPath = '/fisherman.glb'; // Путь к модели fisherman.glb
 
   // Загрузка модели Fisherman
-  
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(modelPath, (gltfModel) => {
       gltf.current = gltfModel;
       modelRef.current.add(gltfModel.scene);
+
+      // Инициализация AnimationMixer и сохранение всех анимаций
+      mixerRef.current = new AnimationMixer(gltfModel.scene);
+      animationsRef.current = gltfModel.animations;
+
+      // Воспроизведение начальной анимации (Idle)
+      playAnimation('Idle');
     }, undefined, (error) => {
       console.error('Ошибка загрузки модели:', error);
     });
   }, []);
+
+  // Функция для воспроизведения нужной анимации
+  const playAnimation = (animationName) => {
+    if (!animationsRef.current || !mixerRef.current) return;
+
+    const animation = animationsRef.current.find((clip) => clip.name === animationName);
+    if (animation) {
+      const action = mixerRef.current.clipAction(animation);
+      action.reset();
+      action.play();
+    }
+  };
 
   // Обновление позиции модели и текста
   useEffect(() => {
@@ -42,6 +63,18 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
       textMesh.current.position.set(position[0], position[1] + 2, position[2]);
     }
   }, [position]);
+
+  // Анимация и обновление AnimationMixer
+  useFrame((state, delta) => {
+    if (mixerRef.current) {
+      mixerRef.current.update(delta);
+    }
+  });
+
+  // Воспроизведение новой анимации при смене состояния
+  useEffect(() => {
+    playAnimation(animation);
+  }, [animation]);
 
   return (
     <>
