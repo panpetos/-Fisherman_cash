@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
-import { Vector3, Color, AnimationMixer } from 'three';
+import { Vector3, Euler, Color, AnimationMixer } from 'three';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import io from 'socket.io-client';
@@ -13,7 +13,7 @@ extend({ TextGeometry });
 
 let socket;
 
-const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
+const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   const modelRef = useRef();
   const textMesh = useRef();
   const mixerRef = useRef();
@@ -43,26 +43,28 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
   }, []);
 
   // Функция для воспроизведения нужной анимации
-  const playAnimation = (animationName) => {
+  const playAnimation = (animationName, loop = true) => {
     if (!animationsRef.current || !mixerRef.current) return;
 
     const animation = animationsRef.current.find((clip) => clip.name === animationName);
     if (animation) {
       const action = mixerRef.current.clipAction(animation);
       action.reset();
+      action.setLoop(loop ? Infinity : 1); // Если анимация должна играть один раз, отключаем бесконечное повторение
       action.play();
     }
   };
 
-  // Обновление позиции модели и текста
+  // Обновление позиции и поворота модели
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
+      modelRef.current.rotation.set(0, rotation, 0);
     }
     if (textMesh.current) {
       textMesh.current.position.set(position[0], position[1] + 2, position[2]);
     }
-  }, [position]);
+  }, [position, rotation]);
 
   // Анимация и обновление AnimationMixer
   useFrame((state, delta) => {
@@ -73,7 +75,7 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
 
   // Воспроизведение новой анимации при смене состояния
   useEffect(() => {
-    playAnimation(animation);
+    playAnimation(animation, animation !== 'Idle');
   }, [animation]);
 
   return (
@@ -87,11 +89,34 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
   );
 };
 
-const FollowCamera = ({ playerPosition }) => {
-  useFrame(({ camera }) => {
-    camera.position.lerp(new Vector3(playerPosition[0], playerPosition[1] + 5, playerPosition[2] + 10), 0.1);
-    camera.lookAt(new Vector3(...playerPosition));
+const FollowCamera = ({ playerPosition, playerRotation }) => {
+  const [cameraRotation, setCameraRotation] = useState(null);
+
+  // Камера следует за персонажем, немного ближе
+  useFrame(({ camera }, delta) => {
+    const targetPosition = new Vector3(
+      playerPosition[0] - Math.sin(playerRotation) * 6, // Чуть ближе к игроку
+      playerPosition[1] + 5,
+      playerPosition[2] - Math.cos(playerRotation) * 6
+    );
+    camera.position.lerp(targetPosition, 0.1);
+
+    if (!cameraRotation) {
+      camera.lookAt(new Vector3(...playerPosition));
+    } else {
+      camera.rotation.setFromEuler(cameraRotation); // Поворот камеры в сторону персонажа
+    }
   });
+
+  useEffect(() => {
+    // Когда персонаж останавливается, через секунду поворачиваем камеру в его сторону
+    if (cameraRotation === null) {
+      const timeout = setTimeout(() => {
+        setCameraRotation(new Euler(0, playerRotation, 0));
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [playerRotation]);
 
   return null;
 };
@@ -107,6 +132,7 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
+  const [playerRotation, setPlayerRotation] = useState(0); // Добавлено для отслеживания поворота игрока
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
@@ -142,10 +168,13 @@ const App = () => {
 
   // Обработка движения игрока
   const handleMove = ({ x, y }) => {
-    movementDirectionRef.current = { x, y };
     const movementSpeed = 0.1;
     const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(...playerPosition).add(movementVector);
+
+    // Рассчитываем угол поворота в сторону движения
+    const angle = Math.atan2(-x, -y);
+    setPlayerRotation(angle); // Поворачиваем игрока в сторону движения
 
     setPlayerPosition(newPosition.toArray());
 
@@ -158,6 +187,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
+      rotation: angle, // Передаем поворот игрока
       animation: currentAnimation,
     });
   };
@@ -168,6 +198,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
+      rotation: playerRotation,
       animation: 'Idle',
     });
   };
@@ -177,8 +208,20 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
+      rotation: playerRotation,
       animation: animationName,
     });
+
+    // Возвращаем в состояние Idle после завершения анимации
+    setTimeout(() => {
+      setCurrentAnimation('Idle');
+      socket.emit('playerMove', {
+        id: socket.id,
+        position: playerPosition,
+        rotation: playerRotation,
+        animation: 'Idle',
+      });
+    }, 1000); // Длительность можно настроить в зависимости от анимации
   };
 
   if (!isConnected) {
@@ -235,11 +278,12 @@ const App = () => {
         <Suspense fallback={null}>
           <ambientLight />
           <pointLight position={[10, 10, 10]} />
-          <FollowCamera playerPosition={playerPosition} />
+          <FollowCamera playerPosition={playerPosition} playerRotation={playerRotation} />
           {Object.keys(players).map((id) => (
             <Fisherman
               key={id}
               position={players[id].position}
+              rotation={players[id].rotation || 0}
               animation={players[id].animation || 'Idle'}
               isLocalPlayer={id === socket.id}
               color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
