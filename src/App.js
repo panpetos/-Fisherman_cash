@@ -1,39 +1,46 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
 import { Vector3, Color } from 'three';
-import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry'; // Импорт TextGeometry
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader'; // Загрузчик шрифтов
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json'; // Пример шрифта
+import fishermanModel from './fisherman.glb'; // Добавьте правильный путь к модели
+import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
-// Расширение пространства имен THREE, чтобы TextGeometry был доступен в R3F
 extend({ TextGeometry });
 
 let socket;
 
-const PlayerCircle = ({ position, animation, isLocalPlayer, color }) => {
-  const mesh = useRef();
+const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
+  const modelRef = useRef();
   const textMesh = useRef();
-  const font = new FontLoader().parse(robotoFont); // Загрузка шрифта
+  const font = new FontLoader().parse(robotoFont);
+  const gltf = useRef();
 
   useEffect(() => {
-    if (mesh.current) {
-      mesh.current.position.set(...position);
+    const loader = new GLTFLoader();
+    loader.load(fishermanModel, (gltfModel) => {
+      gltf.current = gltfModel;
+      modelRef.current.add(gltfModel.scene);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (modelRef.current) {
+      modelRef.current.position.set(...position);
     }
     if (textMesh.current) {
-      textMesh.current.position.set(position[0], position[1] + 2, position[2]); // Поднятие текста над игроком
+      textMesh.current.position.set(position[0], position[1] + 2, position[2]);
     }
   }, [position]);
 
   return (
     <>
-      <mesh ref={mesh}>
-        <circleGeometry args={[1, 32]} />
-        <meshBasicMaterial color={color} />
-      </mesh>
+      <group ref={modelRef} />
       <mesh ref={textMesh}>
-        <textGeometry args={[animation, { font, size: 1, height: 0.1 }]} />
+        <textGeometry args={[animation, { font, size: 1, depth: 0.1 }]} /> {/* Заменили height на depth */}
         <meshBasicMaterial color={color} />
       </mesh>
     </>
@@ -188,7 +195,7 @@ const App = () => {
           <pointLight position={[10, 10, 10]} />
           <FollowCamera playerPosition={playerPosition} />
           {Object.keys(players).map((id) => (
-            <PlayerCircle
+            <Fisherman
               key={id}
               position={players[id].position}
               animation={players[id].animation || 'Idle'}
