@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Vector3, Euler } from 'three';
+import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 import { useGLTF, useAnimations } from '@react-three/drei';
@@ -9,36 +9,41 @@ let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока с анимациями
 const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
-  const { scene, animations } = useGLTF('/models/newModel/Idle.glb'); // Загрузка модели
-  const { actions } = useAnimations(animations, scene); // Используем анимации модели
+  // Загружаем базовую модель и анимации
+  const { scene: tPoseScene } = useGLTF('/models/newModel/T.glb'); // Модель T-поза
+  const { animations: idleAnimations } = useGLTF('/models/newModel/Idle.glb'); // Анимация Idle
+  const { animations: runningAnimations } = useGLTF('/models/newModel/Running.glb'); // Анимация Running
+  
+  // Используем анимации модели
+  const { actions: idleActions } = useAnimations(idleAnimations, tPoseScene);
+  const { actions: runningActions } = useAnimations(runningAnimations, tPoseScene);
   const mesh = useRef();
 
-  // Логика для переключения анимаций и направления модели
   useEffect(() => {
     if (mesh.current) {
-      // Обновление позиции модели
+      // Обновляем позицию модели
       mesh.current.position.set(position[0], position[1], position[2]);
 
       // Если есть движение, включаем анимацию "Running", иначе - "Idle"
       if (movementDirection.x !== 0 || movementDirection.y !== 0) {
-        // Воспроизводим анимацию бега
-        if (actions['Running']) {
-          actions['Running'].play();
+        if (runningActions['Running']) {
+          runningActions['Running'].play();
+          idleActions['Idle']?.stop(); // Остановить Idle
         }
 
         // Направляем персонажа в сторону движения
         const angle = Math.atan2(movementDirection.x, movementDirection.y);
         mesh.current.rotation.set(0, angle, 0);
       } else {
-        // Воспроизводим анимацию ожидания (Idle)
-        if (actions['Idle']) {
-          actions['Idle'].play();
+        if (idleActions['Idle']) {
+          idleActions['Idle'].play();
+          runningActions['Running']?.stop(); // Остановить бег
         }
       }
     }
-  }, [position, movementDirection, actions]);
+  }, [position, movementDirection, idleActions, runningActions]);
 
-  return <primitive ref={mesh} object={scene.clone()} scale={1.5} />;
+  return <primitive ref={mesh} object={tPoseScene.clone()} scale={1.5} />;
 };
 
 // Камера следует за игроком
