@@ -9,7 +9,7 @@ let socket;
 
 // Компонент для загрузки и отображения 3D модели игрока с анимациями
 const PlayerModel = ({ position, isLocalPlayer, movementDirection }) => {
-  const { scene, animations } = useGLTF('/models/newModel/Player.glb'); // Загрузка модели
+  const { scene, animations } = useGLTF('/models/newModel/T.glb'); // Загрузка модели
   const { actions } = useAnimations(animations, scene); // Используем анимации модели
   const mesh = useRef();
 
