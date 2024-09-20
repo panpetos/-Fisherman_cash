@@ -5,7 +5,7 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import fishermanModel from './fisherman.glb'; // Добавьте правильный путь к модели
+import fishermanModel from 'public/fisherman.glb'; // Добавьте правильный путь к модели
 import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
