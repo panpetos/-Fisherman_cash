@@ -1,25 +1,19 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, extend } from '@react-three/fiber';
-import { Vector3, Euler, Color, AnimationMixer } from 'three';
-import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
-import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
+import { Vector3, Color, AnimationMixer } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 // Расширение пространства имен для использования TextGeometry
-extend({ TextGeometry });
+extend({});
 
 let socket;
 
 const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   const modelRef = useRef();
-  const textMesh = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
-  const clockRef = useRef({ delta: 0 });
-  const font = new FontLoader().parse(robotoFont);
   const gltf = useRef();
 
   const modelPath = '/fisherman.glb'; // Путь к модели fisherman.glb
@@ -61,9 +55,6 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
       modelRef.current.position.set(...position);
       modelRef.current.rotation.set(0, rotation, 0);
     }
-    if (textMesh.current) {
-      textMesh.current.position.set(position[0], position[1] + 2, position[2]);
-    }
   }, [position, rotation]);
 
   // Анимация и обновление AnimationMixer
@@ -78,15 +69,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     playAnimation(animation, animation !== 'Idle');
   }, [animation]);
 
-  return (
-    <>
-      <group ref={modelRef} />
-      <mesh ref={textMesh}>
-        <textGeometry args={[animation, { font, size: 1, depth: 0.1 }]} />
-        <meshBasicMaterial color={color} />
-      </mesh>
-    </>
-  );
+  return <group ref={modelRef} />;
 };
 
 const FollowCamera = ({ playerPosition, playerRotation }) => {
@@ -104,7 +87,7 @@ const FollowCamera = ({ playerPosition, playerRotation }) => {
     if (!cameraRotation) {
       camera.lookAt(new Vector3(...playerPosition));
     } else {
-      camera.rotation.setFromEuler(cameraRotation); // Поворот камеры в сторону персонажа
+      camera.rotation.y = playerRotation; // Устанавливаем угол поворота камеры по оси Y
     }
   });
 
@@ -112,7 +95,7 @@ const FollowCamera = ({ playerPosition, playerRotation }) => {
     // Когда персонаж останавливается, через секунду поворачиваем камеру в его сторону
     if (cameraRotation === null) {
       const timeout = setTimeout(() => {
-        setCameraRotation(new Euler(0, playerRotation, 0));
+        setCameraRotation(playerRotation);
       }, 1000);
       return () => clearTimeout(timeout);
     }
