@@ -5,10 +5,9 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import fishermanModel from 'src/public/fisherman.glb'; // Убедитесь, что путь к модели правильныйC:\Users\petrv\Desktop\cryTT\fishing-gamenpx\public\fisherman.glb
 import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-s
+
 // Расширение пространства имен для использования TextGeometry
 extend({ TextGeometry });
 
@@ -20,12 +19,16 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
   const font = new FontLoader().parse(robotoFont);
   const gltf = useRef();
 
+  const modelPath = '/models/fisherman.glb'; // Путь к модели fisherman.glb
+
   // Загрузка модели Fisherman
   useEffect(() => {
     const loader = new GLTFLoader();
-    loader.load(fishermanModel, (gltfModel) => {
+    loader.load(modelPath, (gltfModel) => {
       gltf.current = gltfModel;
       modelRef.current.add(gltfModel.scene);
+    }, undefined, (error) => {
+      console.error('Ошибка загрузки модели:', error);
     });
   }, []);
 
@@ -43,7 +46,7 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
     <>
       <group ref={modelRef} />
       <mesh ref={textMesh}>
-        <textGeometry args={[animation, { font, size: 1, depth: 0.1 }]} /> {/* Исправлено на depth */}
+        <textGeometry args={[animation, { font, size: 1, depth: 0.1 }]} />
         <meshBasicMaterial color={color} />
       </mesh>
     </>
@@ -80,7 +83,7 @@ const App = () => {
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
-    socket = io('https://brandingsite.store:5000'); // Адрес вашего сервера
+    socket = io('https://brandingsite.store:5000');
 
     socket.on('connect', () => {
       console.log('Connected to server with id:', socket.id);
@@ -216,12 +219,10 @@ const App = () => {
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
       </div>
 
-      {/* Online Players Display */}
       <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
         Игроков онлайн: {Object.keys(players).length}
       </div>
 
-      {/* Buttons for different animations */}
       <div style={{ position: 'absolute', bottom: 150, left: 20, display: 'flex', flexDirection: 'column' }}>
         <button onClick={() => triggerAnimation('Fishing Idle')} style={{ padding: '10px', margin: '5px' }}>
           Рыбалка (Idle)
