@@ -5,7 +5,7 @@ import { Vector3 } from 'three';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-// Подключаемся к серверу через HTTPS
+// Подключаемся к серверу
 const socket = io('https://brandingsite.store:5000');
 
 // Компонент для загрузки и отображения модели игрока
@@ -26,7 +26,6 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
-    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
@@ -43,8 +42,8 @@ const Player = ({ id, position, rotation, animationName }) => {
 // Компонент для камеры от третьего лица
 const FollowCamera = ({ playerPosition, cameraRotation }) => {
   const { camera } = useThree();
-  const distance = 5;
-  const height = 2;
+  const distance = 10; // Расстояние камеры
+  const height = 5;    // Высота камеры
 
   useFrame(() => {
     if (camera) {
@@ -82,6 +81,7 @@ const App = () => {
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('St');
   const [players, setPlayers] = useState([]);
+  const movementDirectionRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -105,23 +105,29 @@ const App = () => {
 
   const handleMove = (event) => {
     const { x, y } = event;
+    movementDirectionRef.current = { x, y };
     const movementSpeed = 0.2;
 
-    const moveDirection = new Vector3(
-      Math.sin(cameraRotation),
+    // Направление камеры
+    const cameraDirection = new Vector3(
+      -Math.sin(cameraRotation),
       0,
       Math.cos(cameraRotation)
     ).normalize();
 
+    // Вектор вправо относительно направления камеры
     const rightVector = new Vector3(
-      Math.sin(cameraRotation + Math.PI / 2),
+      Math.cos(cameraRotation),
       0,
-      Math.cos(cameraRotation + Math.PI / 2)
+      Math.sin(cameraRotation)
     ).normalize();
 
-    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
+    // Движение вперед-назад относительно камеры
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
+    // Движение влево-вправо относительно камеры
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
 
+    // Обновление позиции игрока
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -130,9 +136,12 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
+    // Устанавливаем поворот игрока так, чтобы он был направлен по направлению движения
     if (y !== 0 || x !== 0) {
       setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5); 
+      const movementDirection = forwardMovement.clone().add(rightMovement);
+      const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+      setPlayerRotation(directionAngle); 
     } else {
       setAnimationName('St');
     }
@@ -141,12 +150,13 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: Math.atan2(y, x) + 1.5,
+      rotation: playerRotation,
       animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
     });
   };
 
   const handleStop = () => {
+    movementDirectionRef.current = { x: 0, y: 0 };
     setAnimationName('St');
     socket.emit('playerMove', {
       id: socket.id,
@@ -155,6 +165,17 @@ const App = () => {
       animationName: 'St',
     });
   };
+
+  // Обновляем движение, пока джойстик зажат
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
+        handleMove(movementDirectionRef.current);
+      }
+    }, 50); // интервал обновления
+
+    return () => clearInterval(interval);
+  }, [cameraRotation, playerPosition]);
 
   const handleFishing = () => {
     setAnimationName('Fs_2');
@@ -192,7 +213,17 @@ const App = () => {
         ))}
       </Canvas>
 
-      {/* Джойстик для управления персонажем */}
+      {/* Левый джойстик для вращения камеры */}
+      <div style={{ position: 'absolute', left: 20, bottom: 20 }}>
+        <Joystick 
+          size={80} 
+          baseColor="gray" 
+          stickColor="black" 
+          move={(e) => setCameraRotation((prev) => prev + e.x * 0.05)} 
+        />
+      </div>
+
+      {/* Правый джойстик для движения персонажа */}
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick 
           size={80} 
@@ -203,8 +234,8 @@ const App = () => {
         />
       </div>
 
-      {/* Кнопка для заброса удочки */}
-      <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
+      {/* Кнопка для заброса удочки, перемещена выше */}
+      <div style={{ position: 'absolute', bottom: 100, left: 20 }}>
         <button 
           onClick={handleFishing}
           style={{
