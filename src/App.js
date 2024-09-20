@@ -5,10 +5,11 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-import fishermanModel from 'public/fisherman.glb'; // Добавьте правильный путь к модели
+import fishermanModel from 'public/fisherman.glb'; // Убедитесь, что путь к модели правильный
 import robotoFont from 'three/examples/fonts/helvetiker_regular.typeface.json';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
+// Расширение пространства имен для использования TextGeometry
 extend({ TextGeometry });
 
 let socket;
@@ -19,6 +20,7 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
   const font = new FontLoader().parse(robotoFont);
   const gltf = useRef();
 
+  // Загрузка модели Fisherman
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(fishermanModel, (gltfModel) => {
@@ -27,6 +29,7 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
     });
   }, []);
 
+  // Обновление позиции модели и текста
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
@@ -40,7 +43,7 @@ const Fisherman = ({ position, animation, isLocalPlayer, color }) => {
     <>
       <group ref={modelRef} />
       <mesh ref={textMesh}>
-        <textGeometry args={[animation, { font, size: 1, depth: 0.1 }]} /> {/* Заменили height на depth */}
+        <textGeometry args={[animation, { font, size: 1, depth: 0.1 }]} /> {/* Исправлено на depth */}
         <meshBasicMaterial color={color} />
       </mesh>
     </>
@@ -73,10 +76,11 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
+  // Подключение к серверу
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
-    socket = io('https://brandingsite.store:5000');
+    socket = io('https://brandingsite.store:5000'); // Адрес вашего сервера
 
     socket.on('connect', () => {
       console.log('Connected to server with id:', socket.id);
@@ -99,6 +103,7 @@ const App = () => {
     socket.emit('requestPlayers');
   };
 
+  // Обработка движения игрока
   const handleMove = ({ x, y }) => {
     movementDirectionRef.current = { x, y };
     const movementSpeed = 0.1;
