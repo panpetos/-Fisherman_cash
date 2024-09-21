@@ -195,8 +195,8 @@ const App = () => {
     setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
 
-    if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running');
+    if (currentAnimation !== 'Run') {
+      setCurrentAnimation('Run'); // Используем "Run", как в старом коде
     }
 
     // Get the direction name and update state
@@ -212,7 +212,7 @@ const App = () => {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animation: 'Running',
+      animation: 'Run', // Используем "Run" вместо "Running"
     });
   };
 
