@@ -1,30 +1,35 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, AnimationMixer, AnimationClip } from 'three';
+import { Vector3, Color, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation }) => {
-  const groupRef = useRef();
+const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
+  const groupRef = useRef(); // Reference to the group containing the model
   const mixerRef = useRef();
   const animationsRef = useRef();
 
   const modelPath = '/fisherman.glb';
 
+  // Load the model
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(
       modelPath,
       (gltfModel) => {
+        // Add the model to the group
+        groupRef.current.add(gltfModel.scene);
+
+        // Remove rotation tracks from animations
         animationsRef.current = gltfModel.animations.map((clip) => {
           const tracks = clip.tracks.filter((track) => !track.name.includes('rotation'));
           return new AnimationClip(clip.name, clip.duration, tracks);
         });
 
-        groupRef.current.add(gltfModel.scene);
+        // Create an animation mixer
         mixerRef.current = new AnimationMixer(gltfModel.scene);
 
         playAnimation('Idle');
@@ -36,40 +41,47 @@ const Fisherman = ({ position, rotation, animation }) => {
     );
   }, []);
 
-  const playAnimation = (animationName) => {
+  // Play animation
+  const playAnimation = (animationName, loop = true) => {
     if (!animationsRef.current || !mixerRef.current) return;
     const animationClip = animationsRef.current.find((clip) => clip.name === animationName);
     if (animationClip) {
       mixerRef.current.stopAllAction();
       const action = mixerRef.current.clipAction(animationClip);
       action.reset();
+      action.setLoop(loop ? Infinity : 1);
       action.play();
     }
   };
 
+  // Update position and rotation
   useEffect(() => {
-    playAnimation(animation);
-  }, [animation]);
+    if (groupRef.current) {
+      groupRef.current.position.set(...position);
+      groupRef.current.rotation.set(0, rotation, 0); // Apply rotation to the group
+    }
+  }, [position, rotation]);
 
+  // Update AnimationMixer
   useFrame((state, delta) => {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
     }
-
-    if (groupRef.current) {
-      groupRef.current.position.set(...position);
-      groupRef.current.rotation.y = rotation;
-    }
   });
+
+  useEffect(() => {
+    playAnimation(animation, animation !== 'Idle');
+  }, [animation]);
 
   return <group ref={groupRef} />;
 };
 
+// Camera follows the player
 const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
-  const distance = 10;
-  const height = 5;
-  const smoothFactor = 0.1;
+  const distance = 10; // Distance from camera to player
+  const height = 5; // Camera height relative to player
+  const smoothFactor = 0.1; // For smooth camera movement
 
   useFrame(() => {
     if (camera) {
@@ -90,10 +102,14 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 };
 
 const TexturedFloor = () => {
+  const texture = useLoader(
+    TextureLoader,
+    'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
+  );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshBasicMaterial color="green" />
+      <meshBasicMaterial map={texture} />
     </mesh>
   );
 };
@@ -109,7 +125,28 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [joystickDirection, setJoystickDirection] = useState('');
 
+  // Function to get direction name from x and y
+  const getDirectionName = (x, y) => {
+    if (x === 0 && y === 0) return 'center';
+
+    const angle = Math.atan2(y, x) * (180 / Math.PI);
+    let direction = '';
+
+    if (angle >= -22.5 && angle < 22.5) direction = 'right';
+    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
+    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
+    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
+    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
+    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
+    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
+    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
+
+    return direction;
+  };
+
+  // Connect to the server
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
@@ -136,21 +173,20 @@ const App = () => {
     socket.emit('requestPlayers');
   };
 
+  // Handle player movement
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop();
+      handleStop(); // Stop animation when there's no movement
       return;
     }
 
-    movementDirectionRef.current = { x, y };
+    movementDirectionRef.current = { x, y }; // Update movement direction
 
     const movementSpeed = 0.2;
-
     const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
     const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
     const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -158,18 +194,24 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
-
     const movementDirection = forwardMovement.clone().add(rightMovement);
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
 
-    setPlayerRotation(directionAngle);
+    // Adjust the calculation of directionAngle
+    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    // Adjust for model's initial orientation if needed
+    directionAngle += Math.PI;
 
-    setCameraTargetRotation(directionAngle);
+    setPlayerRotation(directionAngle); // Update character rotation
+    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running');
+      setCurrentAnimation('Running'); // Switch to running animation when moving
     }
+
+    // Get the direction name and update state
+    const directionName = getDirectionName(x, y);
+    setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -179,12 +221,15 @@ const App = () => {
     });
   };
 
+  // Stop character and switch to Idle
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
     if (currentAnimation !== 'Idle') {
-      setCurrentAnimation('Idle');
+      setCurrentAnimation('Idle'); // Switch to Idle animation
     }
+
+    setJoystickDirection('center');
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -204,6 +249,7 @@ const App = () => {
     return () => clearInterval(interval);
   }, [cameraRotation, playerPosition]);
 
+  // Smoothly update camera rotation
   useEffect(() => {
     const updateCameraRotation = () => {
       setCameraRotation((prev) => {
@@ -214,7 +260,7 @@ const App = () => {
       });
     };
 
-    const interval = setInterval(updateCameraRotation, 16);
+    const interval = setInterval(updateCameraRotation, 16); // Update every ~16ms (~60fps)
     return () => clearInterval(interval);
   }, [cameraTargetRotation]);
 
@@ -284,6 +330,8 @@ const App = () => {
               position={players[id].position}
               rotation={players[id].rotation || 0}
               animation={players[id].animation || 'Idle'}
+              isLocalPlayer={id === socket.id}
+              color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
             />
           ))}
           <TexturedFloor />
@@ -292,6 +340,10 @@ const App = () => {
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+      </div>
+
+      <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
+        Направление джойстика: {joystickDirection}
       </div>
 
       <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
