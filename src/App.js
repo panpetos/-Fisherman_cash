@@ -1,35 +1,30 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, Color, TextureLoader, AnimationMixer, AnimationClip } from 'three';
+import { Vector3, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
-  const groupRef = useRef(); // Reference to the group containing the model
+const Fisherman = ({ position, rotation, animation }) => {
+  const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
 
   const modelPath = '/fisherman.glb';
 
-  // Load the model
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(
       modelPath,
       (gltfModel) => {
-        // Add the model to the group
-        groupRef.current.add(gltfModel.scene);
-
-        // Remove rotation tracks from animations
         animationsRef.current = gltfModel.animations.map((clip) => {
           const tracks = clip.tracks.filter((track) => !track.name.includes('rotation'));
           return new AnimationClip(clip.name, clip.duration, tracks);
         });
 
-        // Create an animation mixer
+        groupRef.current.add(gltfModel.scene);
         mixerRef.current = new AnimationMixer(gltfModel.scene);
 
         playAnimation('Idle');
@@ -41,47 +36,40 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     );
   }, []);
 
-  // Play animation
-  const playAnimation = (animationName, loop = true) => {
+  const playAnimation = (animationName) => {
     if (!animationsRef.current || !mixerRef.current) return;
     const animationClip = animationsRef.current.find((clip) => clip.name === animationName);
     if (animationClip) {
       mixerRef.current.stopAllAction();
       const action = mixerRef.current.clipAction(animationClip);
       action.reset();
-      action.setLoop(loop ? Infinity : 1);
       action.play();
     }
   };
 
-  // Update position and rotation
   useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Apply rotation to the group
-    }
-  }, [position, rotation]);
+    playAnimation(animation);
+  }, [animation]);
 
-  // Update AnimationMixer
   useFrame((state, delta) => {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
     }
-  });
 
-  useEffect(() => {
-    playAnimation(animation, animation !== 'Idle');
-  }, [animation]);
+    if (groupRef.current) {
+      groupRef.current.position.set(...position);
+      groupRef.current.rotation.y = rotation;
+    }
+  });
 
   return <group ref={groupRef} />;
 };
 
-// Camera follows the player
 const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
-  const distance = 10; // Distance from camera to player
-  const height = 5; // Camera height relative to player
-  const smoothFactor = 0.1; // For smooth camera movement
+  const distance = 10;
+  const height = 5;
+  const smoothFactor = 0.1;
 
   useFrame(() => {
     if (camera) {
@@ -102,14 +90,10 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 };
 
 const TexturedFloor = () => {
-  const texture = useLoader(
-    TextureLoader,
-    'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
-  );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshBasicMaterial map={texture} />
+      <meshBasicMaterial color="green" />
     </mesh>
   );
 };
@@ -126,7 +110,6 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
-  // Connect to the server
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
@@ -153,20 +136,21 @@ const App = () => {
     socket.emit('requestPlayers');
   };
 
-  // Handle player movement
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop(); // Stop animation when there's no movement
+      handleStop();
       return;
     }
 
-    movementDirectionRef.current = { x, y }; // Update movement direction
+    movementDirectionRef.current = { x, y };
 
     const movementSpeed = 0.2;
+
     const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
     const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
     const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -174,20 +158,17 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
+
     const movementDirection = forwardMovement.clone().add(rightMovement);
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
 
-    // Adjust the calculation of directionAngle
-    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    setPlayerRotation(directionAngle);
 
-    // Adjust for model's initial orientation if needed
-    directionAngle += Math.PI; // Try adding or subtracting Math.PI / 2 or Math.PI as needed
-
-    setPlayerRotation(directionAngle); // Update character rotation
-    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
+    setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running'); // Switch to running animation when moving
+      setCurrentAnimation('Running');
     }
 
     socket.emit('playerMove', {
@@ -198,12 +179,11 @@ const App = () => {
     });
   };
 
-  // Stop character and switch to Idle
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
     if (currentAnimation !== 'Idle') {
-      setCurrentAnimation('Idle'); // Switch to Idle animation
+      setCurrentAnimation('Idle');
     }
 
     socket.emit('playerMove', {
@@ -224,7 +204,6 @@ const App = () => {
     return () => clearInterval(interval);
   }, [cameraRotation, playerPosition]);
 
-  // Smoothly update camera rotation
   useEffect(() => {
     const updateCameraRotation = () => {
       setCameraRotation((prev) => {
@@ -235,7 +214,7 @@ const App = () => {
       });
     };
 
-    const interval = setInterval(updateCameraRotation, 16); // Update every ~16ms (~60fps)
+    const interval = setInterval(updateCameraRotation, 16);
     return () => clearInterval(interval);
   }, [cameraTargetRotation]);
 
@@ -305,8 +284,6 @@ const App = () => {
               position={players[id].position}
               rotation={players[id].rotation || 0}
               animation={players[id].animation || 'Idle'}
-              isLocalPlayer={id === socket.id}
-              color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
             />
           ))}
           <TexturedFloor />
