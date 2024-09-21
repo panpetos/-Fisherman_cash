@@ -172,15 +172,15 @@ const App = () => {
     setCameraTargetRotation(directionAngle); // Rotate camera towards movement
     setIsPlayerMoving(true);
 
-    if (currentAnimation !== 'Run') {
-      setCurrentAnimation('Run'); // Use the correct "Run" animation name
+    if (currentAnimation !== 'Runing') {
+      setCurrentAnimation('Runing'); // Use the correct "Run" animation name
     }
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animation: 'Run', // Correct animation name
+      animation: 'Runing', // Correct animation name
     });
   };
 
