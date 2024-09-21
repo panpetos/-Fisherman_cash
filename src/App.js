@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber'; 
+import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber';
 import { Vector3, Color, TextureLoader, AnimationMixer } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
@@ -67,6 +67,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   return <group ref={modelRef} />;
 };
 
+// Следование камеры за игроком
 const FollowCamera = ({ playerPosition, playerRotation, cameraDistance, isMoving }) => {
   const { camera } = useThree();
   const [rotateCamera, setRotateCamera] = useState(false);
@@ -88,7 +89,7 @@ const FollowCamera = ({ playerPosition, playerRotation, cameraDistance, isMoving
     }
   });
 
-  // После остановки поворачиваем камеру через 2 секунды
+  // Поворот камеры через 2 секунды после остановки
   useEffect(() => {
     if (!isMoving) {
       rotateTimeoutRef.current = setTimeout(() => {
