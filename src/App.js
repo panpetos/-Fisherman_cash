@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, Color, TextureLoader, AnimationMixer } from 'three';
+import { Vector3, Color, TextureLoader, AnimationMixer, Euler } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -49,7 +49,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа
+      modelRef.current.rotation.set(0, rotation, 0); // Обновляем поворот персонажа
     }
   }, [position, rotation]);
 
@@ -150,7 +150,7 @@ const App = () => {
     const movementSpeed = 0.2;
 
     // Вычисляем угол поворота персонажа на основе направления движения джойстика
-    const angle = Math.atan2(-x, -y);
+    const angle = Math.atan2(x, y);
     setPlayerRotation(angle); // Обновляем угол поворота персонажа
 
     // Вычисляем новое положение персонажа
