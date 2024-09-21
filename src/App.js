@@ -10,6 +10,7 @@ const socket = io('https://brandingsite.store:5000');
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
+  // Убедитесь, что путь корректен и модель доступна
   const { scene, animations } = useGLTF('/fisherman.glb'); // Замените на правильный путь
   const { actions } = useAnimations(animations, group);
 
@@ -79,7 +80,7 @@ const App = () => {
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [animationName, setAnimationName] = useState('Idle');
-  const [players, setPlayers] = useState({}); // Инициализируем объект, а не массив
+  const [players, setPlayers] = useState([]);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -177,7 +178,7 @@ const App = () => {
         <TexturedFloor />
         
         {/* Другие игроки */}
-        {Object.values(players).map((player) => (
+        {players.map((player) => (
           player.id !== socket.id && (
             <Player
               key={player.id}
