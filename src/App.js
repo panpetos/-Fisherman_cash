@@ -147,6 +147,18 @@ const App = () => {
     return direction;
   };
 
+  // Map direction name to rotation angle
+  const directionAngles = {
+    'up': 0,
+    'up right': -Math.PI / 4,
+    'right': -Math.PI / 2,
+    'down right': -3 * Math.PI / 4,
+    'down': Math.PI,
+    'down left': 3 * Math.PI / 4,
+    'left': Math.PI / 2,
+    'up left': Math.PI / 4,
+  };
+
   // Connect to the server
   const handleConnect = () => {
     setIsLoading(true);
@@ -195,12 +207,13 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
-    const movementDirection = forwardMovement.clone().add(rightMovement);
 
-    // Adjust the calculation of directionAngle
-    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    // Adjust for model's initial orientation if needed
-    directionAngle += Math.PI;
+    // Get the direction name and update state
+    const directionName = getDirectionName(x, y);
+    setJoystickDirection(directionName);
+
+    // Get the rotation angle from direction name
+    let directionAngle = directionAngles[directionName] || 0;
 
     setPlayerRotation(directionAngle); // Update character rotation
     setCameraTargetRotation(directionAngle); // Rotate camera towards movement
@@ -209,10 +222,6 @@ const App = () => {
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running'); // Switch to running animation when moving
     }
-
-    // Get the direction name and update state
-    const directionName = getDirectionName(x, y);
-    setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
       id: socket.id,
