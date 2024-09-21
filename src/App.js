@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, Color, TextureLoader, AnimationMixer, Euler } from 'three';
+import { Vector3, Color, TextureLoader, AnimationMixer } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -45,11 +45,11 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     }
   };
 
-  // Обновление позиции и поворота
+  // Обновление позиции и поворота персонажа
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Обновляем поворот персонажа
+      modelRef.current.rotation.set(0, rotation, 0); // Вращаем персонажа по оси Y
     }
   }, [position, rotation]);
 
@@ -150,16 +150,13 @@ const App = () => {
     const movementSpeed = 0.2;
 
     // Вычисляем угол поворота персонажа на основе направления движения джойстика
-    const angle = Math.atan2(x, y);
+    const angle = Math.atan2(x, y); // Используем направление джойстика для поворота персонажа
     setPlayerRotation(angle); // Обновляем угол поворота персонажа
 
     // Вычисляем новое положение персонажа
-    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
-    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
-    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
-    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
-    
+    const forwardMovement = new Vector3(-Math.sin(angle), 0, Math.cos(angle)).multiplyScalar(movementSpeed);
+    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z);
+
     setPlayerPosition(newPosition.toArray());
     setCameraTargetRotation(angle); // Поворот камеры в сторону движения
     setIsPlayerMoving(true);
