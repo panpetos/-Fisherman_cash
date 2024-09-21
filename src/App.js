@@ -7,7 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, tiltX, tiltZ, animation, sliderRotation }) => {
+const Fisherman = ({ position, rotation, tiltX, tiltZ, animation }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, tiltX, tiltZ, animation, sliderRotation
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(tiltX, rotation + sliderRotation, tiltZ);
+      groupRef.current.rotation.set(tiltX, rotation, tiltZ);
     }
   });
 
@@ -117,7 +117,6 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [sliderRotation, setSliderRotation] = useState(0);
   const [tiltX, setTiltX] = useState(0);
   const [tiltZ, setTiltZ] = useState(0);
 
@@ -192,14 +191,12 @@ const App = () => {
 
     // Adjust the calculation of directionAngle
     let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    directionAngle += Math.PI;
-
-    setPlayerRotation(directionAngle);
+    setPlayerRotation(directionAngle); // Automatically rotate player in the direction of movement
     setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
 
-    if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running');
+    if (currentAnimation !== 'Runing') {
+      setCurrentAnimation('Runing'); // Используем "Run", как в старом коде
     }
 
     // Get the direction name and update state
@@ -215,7 +212,7 @@ const App = () => {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animation: 'Running',
+      animation: 'Runingun', // Используем "Run" вместо "Running"
     });
   };
 
@@ -324,7 +321,6 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
-                  sliderRotation={sliderRotation}
                   tiltX={tiltX}
                   tiltZ={tiltZ}
                 />
@@ -335,17 +331,6 @@ const App = () => {
 
           <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
             <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
-          </div>
-
-          <div style={{ position: 'absolute', bottom: 20, left: 20, color: 'white', fontSize: '18px' }}>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              value={(sliderRotation * 180) / Math.PI}
-              onChange={(e) => setSliderRotation((parseFloat(e.target.value) * Math.PI) / 180)}
-            />
-            <div>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
           </div>
 
           <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
