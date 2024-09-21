@@ -49,7 +49,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Обновляем поворот в зависимости от движения
+      modelRef.current.rotation.set(0, rotation, 0); // Персонаж смотрит в сторону движения
     }
   }, [position, rotation]);
 
@@ -143,39 +143,39 @@ const App = () => {
   // Обработка движения игрока
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop();
+      handleStop(); // Останавливаем анимацию при отсутствии движения
       return;
     }
 
     const movementSpeed = 0.2;
-    const movementDirection = new Vector3(x, 0, -y).normalize();
-    const newPosition = new Vector3(
-      playerPosition[0] + movementDirection.x * movementSpeed,
-      playerPosition[1],
-      playerPosition[2] + movementDirection.z * movementSpeed
-    );
-
-    // Рассчитываем угол поворота в сторону движения
-    const angle = Math.atan2(-x, -y);
-    setPlayerRotation(angle); 
-    setCameraTargetRotation(angle); // Поворот камеры в сторону движения
+    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
+    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
+    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
+    
     setPlayerPosition(newPosition.toArray());
+    const movementDirection = forwardMovement.clone().add(rightMovement);
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    setPlayerRotation(directionAngle); 
+    setCameraTargetRotation(directionAngle); // Поворот камеры в сторону движения
     setIsPlayerMoving(true);
 
-    setCurrentAnimation('Running'); // При движении - анимация "Running"
+    setCurrentAnimation('Running'); // Анимация бега при движении
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: angle, 
+      rotation: directionAngle, 
       animation: 'Running',
     });
   };
 
+  // Остановка персонажа и переключение на Idle
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
-    setCurrentAnimation('Idle'); // При остановке - анимация "Idle"
+    setCurrentAnimation('Idle'); // Переключаем на анимацию Idle
 
     socket.emit('playerMove', {
       id: socket.id,
