@@ -156,12 +156,12 @@ const App = () => {
   };
 
   const handleFishing = () => {
-    setAnimationName('Fs_2');
+    setAnimationName('Fishing Idle');
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'Fs_2',
+      animationName: 'Fishing Idle',
     });
   };
 
