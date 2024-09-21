@@ -13,43 +13,47 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   const modelRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
-  const gltf = useRef();
 
   const modelPath = '/fisherman.glb';
 
   // Загрузка модели
   useEffect(() => {
     const loader = new GLTFLoader();
-    loader.load(modelPath, (gltfModel) => {
-      gltf.current = gltfModel;
-      modelRef.current.add(gltfModel.scene);
+    loader.load(
+      modelPath,
+      (gltfModel) => {
+        modelRef.current.add(gltfModel.scene);
 
-      mixerRef.current = new AnimationMixer(gltfModel.scene);
-      animationsRef.current = gltfModel.animations;
+        mixerRef.current = new AnimationMixer(gltfModel.scene);
+        animationsRef.current = gltfModel.animations;
 
-      playAnimation('Idle');
-    }, undefined, (error) => {
-      console.error('Ошибка загрузки модели:', error);
-    });
+        playAnimation('Idle');
+      },
+      undefined,
+      (error) => {
+        console.error('Ошибка загрузки модели:', error);
+      }
+    );
   }, []);
 
   // Воспроизведение анимации
   const playAnimation = (animationName, loop = true) => {
     if (!animationsRef.current || !mixerRef.current) return;
-    const animation = animationsRef.current.find((clip) => clip.name === animationName);
-    if (animation) {
-      const action = mixerRef.current.clipAction(animation);
+    const animationClip = animationsRef.current.find((clip) => clip.name === animationName);
+    if (animationClip) {
+      mixerRef.current.stopAllAction(); // Останавливаем предыдущие анимации
+      const action = mixerRef.current.clipAction(animationClip);
       action.reset();
       action.setLoop(loop ? Infinity : 1);
       action.play();
     }
   };
 
-  // Обновление позиции и поворота персонажа
+  // Обновление позиции и поворота
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа в зависимости от направления движения
+      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа
     }
   }, [position, rotation]);
 
@@ -72,7 +76,7 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
   const { camera } = useThree();
   const distance = 10; // Расстояние от камеры до игрока
   const height = 5; // Высота камеры относительно игрока
-  const smoothFactor = 0.05; // Для плавности движения камеры
+  const smoothFactor = 0.1; // Для плавности движения камеры
 
   useFrame(() => {
     if (camera) {
@@ -85,6 +89,7 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
       );
       camera.position.copy(new Vector3(...playerPosition).add(offset));
       camera.lookAt(new Vector3(...playerPosition));
+      camera.rotation.order = 'YXZ';
     }
   });
 
@@ -92,7 +97,10 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
 };
 
 const TexturedFloor = () => {
-  const texture = useLoader(TextureLoader, 'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
+  const texture = useLoader(
+    TextureLoader,
+    'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
+  );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -103,14 +111,14 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0); 
+  const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
   const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [isPlayerMoving, setIsPlayerMoving] = useState(false); // Для отслеживания движения
+  const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
   // Подключение к серверу
@@ -147,29 +155,35 @@ const App = () => {
       return;
     }
 
+    movementDirectionRef.current = { x, y }; // Обновляем направление движения
+
     const movementSpeed = 0.2;
-
-    // Вычисляем угол поворота персонажа на основе направления движения джойстика
-    const angle = Math.atan2(x, y); // Используем направление джойстика для поворота персонажа
-    setPlayerRotation(angle); // Обновляем угол поворота персонажа
-
-    // Вычисляем новое положение персонажа
     const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
     const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
     const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
+    const newPosition = new Vector3(
+      playerPosition[0] + forwardMovement.x + rightMovement.x,
+      playerPosition[1],
+      playerPosition[2] + forwardMovement.z + rightMovement.z
+    );
 
     setPlayerPosition(newPosition.toArray());
-    setCameraTargetRotation(angle); // Поворот камеры в сторону движения
+    const movementDirection = forwardMovement.clone().add(rightMovement);
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+
+    setPlayerRotation(directionAngle); // Обновляем ротацию персонажа в сторону джойстика
+    setCameraTargetRotation(directionAngle); // Поворот камеры в сторону движения
     setIsPlayerMoving(true);
 
-    setCurrentAnimation('Running'); // Анимация бега при движении
+    if (currentAnimation !== 'Running') {
+      setCurrentAnimation('Running'); // Анимация бега при движении
+    }
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: angle, 
+      rotation: directionAngle,
       animation: 'Running',
     });
   };
@@ -178,7 +192,9 @@ const App = () => {
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
-    setCurrentAnimation('Idle'); // Переключаем на анимацию Idle
+    if (currentAnimation !== 'Idle') {
+      setCurrentAnimation('Idle'); // Переключаем на анимацию Idle
+    }
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -201,19 +217,17 @@ const App = () => {
   // Плавное изменение вращения камеры
   useEffect(() => {
     const updateCameraRotation = () => {
-      setCameraRotation(prev => {
+      setCameraRotation((prev) => {
         const deltaRotation = cameraTargetRotation - prev;
-        const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
+        const normalizedDelta = ((deltaRotation + Math.PI) % (2 * Math.PI)) - Math.PI;
         const newRotation = prev + normalizedDelta * 0.1;
         return newRotation % (2 * Math.PI);
       });
     };
 
-    if (!isPlayerMoving) {
-      const interval = setInterval(updateCameraRotation, 100);
-      return () => clearInterval(interval);
-    }
-  }, [isPlayerMoving, cameraTargetRotation]);
+    const interval = setInterval(updateCameraRotation, 16); // Обновляем каждые ~16ms (~60fps)
+    return () => clearInterval(interval);
+  }, [cameraTargetRotation]);
 
   if (!isConnected) {
     return (
@@ -273,7 +287,7 @@ const App = () => {
             playerPosition={playerPosition}
             cameraRotation={cameraRotation}
             cameraTargetRotation={cameraTargetRotation}
-            isPlayerMoving={isPlayerMoving} 
+            isPlayerMoving={isPlayerMoving}
           />
           {Object.keys(players).map((id) => (
             <Fisherman
