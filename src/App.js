@@ -49,7 +49,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа в сторону движения
+      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа
     }
   }, [position, rotation]);
 
@@ -148,22 +148,24 @@ const App = () => {
     }
 
     const movementSpeed = 0.2;
-    const movementDirection = new Vector3(x, 0, -y).normalize(); // Направление движения
-    const newPosition = new Vector3(
-      playerPosition[0] + movementDirection.x * movementSpeed,
-      playerPosition[1],
-      playerPosition[2] + movementDirection.z * movementSpeed
-    );
+    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
+    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
+    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
 
-    // Рассчитываем угол поворота в сторону движения
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z); // Угол в зависимости от направления джойстика
-    setPlayerRotation(directionAngle); // Поворот персонажа
-    setCameraTargetRotation(directionAngle); // Поворот камеры в сторону движения
+    // Угол вращения в зависимости от направления движения
+    const movementDirection = forwardMovement.clone().add(rightMovement);
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    
     setPlayerPosition(newPosition.toArray());
+    setPlayerRotation(directionAngle); // Устанавливаем поворот персонажа
+    setCameraTargetRotation(directionAngle); // Поворот камеры в сторону движения
     setIsPlayerMoving(true);
 
     setCurrentAnimation('Running'); // Анимация бега при движении
 
+    // Отправляем данные на сервер
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
