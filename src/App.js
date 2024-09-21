@@ -7,7 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
+const Fisherman = ({ position, rotation, animation, isLocalPlayer, color, sliderRotation }) => {
   const groupRef = useRef(); // Reference to the group containing the model
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -58,9 +58,9 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   useEffect(() => {
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Apply rotation to the group
+      groupRef.current.rotation.set(0, rotation + sliderRotation, 0); // Apply rotation to the group
     }
-  }, [position, rotation]);
+  }, [position, rotation, sliderRotation]);
 
   // Update AnimationMixer
   useFrame((state, delta) => {
@@ -126,6 +126,7 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
+  const [sliderRotation, setSliderRotation] = useState(0);
 
   // Function to get direction name from x and y
   const getDirectionName = (x, y) => {
@@ -332,6 +333,7 @@ const App = () => {
               animation={players[id].animation || 'Idle'}
               isLocalPlayer={id === socket.id}
               color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
+              sliderRotation={sliderRotation}
             />
           ))}
           <TexturedFloor />
@@ -340,6 +342,17 @@ const App = () => {
 
       <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
         <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+      </div>
+
+      <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
+        <input
+          type="range"
+          min="0"
+          max="360"
+          value={(sliderRotation * 180) / Math.PI}
+          onChange={(e) => setSliderRotation((e.target.value * Math.PI) / 180)}
+        />
+        <div style={{ color: 'white' }}>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
       </div>
 
       <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
