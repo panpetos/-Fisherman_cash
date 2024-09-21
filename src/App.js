@@ -11,7 +11,7 @@ const socket = io('https://brandingsite.store:5000');
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   // Убедитесь, что путь корректен и модель доступна
-  const { scene, animations } = useGLTF('/public/fisherman.glb'); // Замените на правильный путь
+  const { scene, animations } = useGLTF('/fisherman.glb'); // Замените на правильный путь
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
