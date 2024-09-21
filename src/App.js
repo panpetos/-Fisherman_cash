@@ -7,7 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation }) => {
+const Fisherman = ({ position, rotation, tiltX, tiltZ, animation, sliderRotation }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0);
+      groupRef.current.rotation.set(tiltX, rotation + sliderRotation, tiltZ);
     }
   });
 
@@ -118,6 +118,8 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
   const [sliderRotation, setSliderRotation] = useState(0);
+  const [tiltX, setTiltX] = useState(0);
+  const [tiltZ, setTiltZ] = useState(0);
 
   // Function to get direction name from x and y
   const getDirectionName = (x, y) => {
@@ -187,24 +189,32 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
+
+    // Adjust the calculation of directionAngle
     let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
     directionAngle += Math.PI;
 
-    setPlayerRotation(directionAngle + sliderRotation);
-    setCameraTargetRotation(directionAngle + sliderRotation);
+    setPlayerRotation(directionAngle);
+    setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
+    // Get the direction name and update state
     const directionName = getDirectionName(x, y);
     setJoystickDirection(directionName);
+
+    // Calculate tilt based on joystick position
+    const maxTilt = Math.PI / 18; // 10 degrees
+    setTiltX(-y * maxTilt);
+    setTiltZ(x * maxTilt);
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle + sliderRotation,
+      rotation: directionAngle,
       animation: 'Running',
     });
   };
@@ -218,6 +228,8 @@ const App = () => {
     }
 
     setJoystickDirection('center');
+    setTiltX(0);
+    setTiltZ(0);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -235,7 +247,7 @@ const App = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [cameraRotation, playerPosition, sliderRotation]);
+  }, [cameraRotation, playerPosition]);
 
   // Smoothly update camera rotation
   useEffect(() => {
@@ -312,6 +324,9 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
+                  sliderRotation={sliderRotation}
+                  tiltX={tiltX}
+                  tiltZ={tiltZ}
                 />
               ))}
               <TexturedFloor />
@@ -328,7 +343,7 @@ const App = () => {
               min="0"
               max="360"
               value={(sliderRotation * 180) / Math.PI}
-              onChange={(e) => setSliderRotation((e.target.value * Math.PI) / 180)}
+              onChange={(e) => setSliderRotation((parseFloat(e.target.value) * Math.PI) / 180)}
             />
             <div>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
           </div>
