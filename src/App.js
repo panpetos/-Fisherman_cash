@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, AnimationMixer, AnimationClip, Euler } from 'three';
+import { Vector3, Color, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation }) => {
+const Fisherman = ({ position, rotation, tiltX, tiltZ, animation }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.copy(new Euler(0, rotation, 0)); // Поворачиваем персонажа по оси Y в сторону движения
+      groupRef.current.rotation.set(tiltX, rotation, tiltZ);
     }
   });
 
@@ -85,6 +85,7 @@ const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, is
       );
       camera.position.copy(new Vector3(...playerPosition).add(offset));
       camera.lookAt(new Vector3(...playerPosition));
+      camera.rotation.order = 'YXZ';
     }
   });
 
@@ -115,6 +116,28 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [joystickDirection, setJoystickDirection] = useState('');
+  const [tiltX, setTiltX] = useState(0);
+  const [tiltZ, setTiltZ] = useState(0);
+
+  // Function to get direction name from x and y
+  const getDirectionName = (x, y) => {
+    if (x === 0 && y === 0) return 'center';
+
+    const angle = Math.atan2(y, x) * (180 / Math.PI);
+    let direction = '';
+
+    if (angle >= -22.5 && angle < 22.5) direction = 'right';
+    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
+    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
+    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
+    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
+    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
+    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
+    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
+
+    return direction;
+  };
 
   // Connect to the server
   const handleConnect = () => {
@@ -166,21 +189,30 @@ const App = () => {
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
 
-    // Calculate the angle based on movement direction
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    setPlayerRotation(directionAngle); // Rotate player to face the movement direction
-    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
+    // Adjust the calculation of directionAngle
+    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    setPlayerRotation(directionAngle); // Automatically rotate player in the direction of movement
+    setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Runing') {
-      setCurrentAnimation('Runing'); // Use the correct "Run" animation name
+      setCurrentAnimation('Runing'); // Используем "Run", как в старом коде
     }
+
+    // Get the direction name and update state
+    const directionName = getDirectionName(x, y);
+    setJoystickDirection(directionName);
+
+    // Calculate tilt based on joystick position
+    const maxTilt = Math.PI / 18; // 10 degrees
+    setTiltX(-y * maxTilt);
+    setTiltZ(x * maxTilt);
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: directionAngle,
-      animation: 'Runing', // Correct animation name
+      animation: 'Runingun', // Используем "Run" вместо "Running"
     });
   };
 
@@ -191,6 +223,10 @@ const App = () => {
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
+
+    setJoystickDirection('center');
+    setTiltX(0);
+    setTiltZ(0);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -285,6 +321,8 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
+                  tiltX={tiltX}
+                  tiltZ={tiltZ}
                 />
               ))}
               <TexturedFloor />
@@ -293,6 +331,10 @@ const App = () => {
 
           <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
             <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+          </div>
+
+          <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
+            Направление джойстика: {joystickDirection}
           </div>
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
