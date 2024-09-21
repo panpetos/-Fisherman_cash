@@ -7,29 +7,25 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation, isLocalPlayer, color, sliderRotation }) => {
-  const groupRef = useRef(); // Reference to the group containing the model
+const Fisherman = ({ position, rotation, animation, sliderRotation }) => {
+  const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
 
   const modelPath = '/fisherman.glb';
 
-  // Load the model
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(
       modelPath,
       (gltfModel) => {
-        // Add the model to the group
         groupRef.current.add(gltfModel.scene);
 
-        // Remove rotation tracks from animations
         animationsRef.current = gltfModel.animations.map((clip) => {
           const tracks = clip.tracks.filter((track) => !track.name.includes('rotation'));
           return new AnimationClip(clip.name, clip.duration, tracks);
         });
 
-        // Create an animation mixer
         mixerRef.current = new AnimationMixer(gltfModel.scene);
 
         playAnimation('Idle');
@@ -41,7 +37,6 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color, slider
     );
   }, []);
 
-  // Play animation
   const playAnimation = (animationName, loop = true) => {
     if (!animationsRef.current || !mixerRef.current) return;
     const animationClip = animationsRef.current.find((clip) => clip.name === animationName);
@@ -54,24 +49,20 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color, slider
     }
   };
 
-  // Update position and rotation
   useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation + sliderRotation, 0); // Apply rotation to the group
-    }
-  }, [position, rotation, sliderRotation]);
+    playAnimation(animation, animation !== 'Idle');
+  }, [animation]);
 
-  // Update AnimationMixer
   useFrame((state, delta) => {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
     }
-  });
 
-  useEffect(() => {
-    playAnimation(animation, animation !== 'Idle');
-  }, [animation]);
+    if (groupRef.current) {
+      groupRef.current.position.set(...position);
+      groupRef.current.rotation.set(0, rotation + sliderRotation, 0);
+    }
+  });
 
   return <group ref={groupRef} />;
 };
@@ -196,21 +187,17 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
-
-    // Adjust the calculation of directionAngle
     let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    // Adjust for model's initial orientation if needed
     directionAngle += Math.PI;
 
-    setPlayerRotation(directionAngle); // Update character rotation
-    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
+    setPlayerRotation(directionAngle);
+    setCameraTargetRotation(directionAngle);
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running'); // Switch to running animation when moving
+      setCurrentAnimation('Running');
     }
 
-    // Get the direction name and update state
     const directionName = getDirectionName(x, y);
     setJoystickDirection(directionName);
 
@@ -227,7 +214,7 @@ const App = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
     if (currentAnimation !== 'Idle') {
-      setCurrentAnimation('Idle'); // Switch to Idle animation
+      setCurrentAnimation('Idle');
     }
 
     setJoystickDirection('center');
@@ -265,46 +252,6 @@ const App = () => {
     return () => clearInterval(interval);
   }, [cameraTargetRotation]);
 
-  if (!isConnected) {
-    return (
-      <div
-        style={{
-          height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'url(/nebo.jpg)',
-          backgroundSize: 'cover',
-        }}
-      >
-        <h1>FunFishing</h1>
-        <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
-          Войти в общий сервер
-        </button>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          height: '100vh',
-          width: '100vw',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'url(/nebo.jpg)',
-          backgroundSize: 'cover',
-        }}
-      >
-        <h1>Загрузка...</h1>
-      </div>
-    );
-  }
-
   return (
     <div
       style={{
@@ -315,53 +262,87 @@ const App = () => {
         backgroundSize: 'cover',
       }}
     >
-      <Canvas>
-        <Suspense fallback={null}>
-          <ambientLight />
-          <pointLight position={[10, 10, 10]} />
-          <FollowCamera
-            playerPosition={playerPosition}
-            cameraRotation={cameraRotation}
-            cameraTargetRotation={cameraTargetRotation}
-            isPlayerMoving={isPlayerMoving}
-          />
-          {Object.keys(players).map((id) => (
-            <Fisherman
-              key={id}
-              position={players[id].position}
-              rotation={players[id].rotation || 0}
-              animation={players[id].animation || 'Idle'}
-              isLocalPlayer={id === socket.id}
-              color={id === socket.id ? 'red' : new Color(Math.random(), Math.random(), Math.random())}
-              sliderRotation={sliderRotation}
+      {!isConnected ? (
+        <div
+          style={{
+            height: '100vh',
+            width: '100vw',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundImage: 'url(/nebo.jpg)',
+            backgroundSize: 'cover',
+          }}
+        >
+          <h1>FunFishing</h1>
+          <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
+            Войти в общий сервер
+          </button>
+        </div>
+      ) : isLoading ? (
+        <div
+          style={{
+            height: '100vh',
+            width: '100vw',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundImage: 'url(/nebo.jpg)',
+            backgroundSize: 'cover',
+          }}
+        >
+          <h1>Загрузка...</h1>
+        </div>
+      ) : (
+        <>
+          <Canvas>
+            <Suspense fallback={null}>
+              <ambientLight />
+              <pointLight position={[10, 10, 10]} />
+              <FollowCamera
+                playerPosition={playerPosition}
+                cameraRotation={cameraRotation}
+                cameraTargetRotation={cameraTargetRotation}
+                isPlayerMoving={isPlayerMoving}
+              />
+              {Object.keys(players).map((id) => (
+                <Fisherman
+                  key={id}
+                  position={players[id].position}
+                  rotation={players[id].rotation || 0}
+                  animation={players[id].animation || 'Idle'}
+                  sliderRotation={sliderRotation}
+                />
+              ))}
+              <TexturedFloor />
+            </Suspense>
+          </Canvas>
+
+          <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
+            <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+          </div>
+
+          <div style={{ position: 'absolute', bottom: 20, left: 20, color: 'white', fontSize: '18px' }}>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value={(sliderRotation * 180) / Math.PI}
+              onChange={(e) => setSliderRotation((e.target.value * Math.PI) / 180)}
             />
-          ))}
-          <TexturedFloor />
-        </Suspense>
-      </Canvas>
+            <div>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
+          </div>
 
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
-      </div>
+          <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
+            Направление джойстика: {joystickDirection}
+          </div>
 
-      <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
-        <input
-          type="range"
-          min="0"
-          max="360"
-          value={(sliderRotation * 180) / Math.PI}
-          onChange={(e) => setSliderRotation((e.target.value * Math.PI) / 180)}
-        />
-        <div style={{ color: 'white' }}>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
-      </div>
-
-      <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
-        Направление джойстика: {joystickDirection}
-      </div>
-
-      <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
-        Игроков онлайн: {Object.keys(players).length}
-      </div>
+          <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
+            Игроков онлайн: {Object.keys(players).length}
+          </div>
+        </>
+      )}
     </div>
   );
 };
