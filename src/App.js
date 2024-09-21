@@ -8,39 +8,40 @@ import { Joystick } from 'react-joystick-component';
 let socket;
 
 const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
-  const modelRef = useRef();
+  const groupRef = useRef(); // Reference to the group containing the model
   const mixerRef = useRef();
   const animationsRef = useRef();
 
   const modelPath = '/fisherman.glb';
 
-  // Загрузка модели
+  // Load the model
   useEffect(() => {
     const loader = new GLTFLoader();
     loader.load(
       modelPath,
       (gltfModel) => {
-        // Ищем узел модели для вращения
-        modelRef.current = gltfModel.scene;
+        // Add the model to the group
+        groupRef.current.add(gltfModel.scene);
 
-        // Удаляем треки вращения из анимаций
+        // Remove rotation tracks from animations
         animationsRef.current = gltfModel.animations.map((clip) => {
           const tracks = clip.tracks.filter((track) => !track.name.includes('rotation'));
           return new AnimationClip(clip.name, clip.duration, tracks);
         });
 
-        mixerRef.current = new AnimationMixer(modelRef.current);
+        // Create an animation mixer
+        mixerRef.current = new AnimationMixer(gltfModel.scene);
 
         playAnimation('Idle');
       },
       undefined,
       (error) => {
-        console.error('Ошибка загрузки модели:', error);
+        console.error('Error loading model:', error);
       }
     );
   }, []);
 
-  // Воспроизведение анимации
+  // Play animation
   const playAnimation = (animationName, loop = true) => {
     if (!animationsRef.current || !mixerRef.current) return;
     const animationClip = animationsRef.current.find((clip) => clip.name === animationName);
@@ -53,15 +54,15 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     }
   };
 
-  // Обновление позиции и поворота
+  // Update position and rotation
   useEffect(() => {
-    if (modelRef.current) {
-      modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа
+    if (groupRef.current) {
+      groupRef.current.position.set(...position);
+      groupRef.current.rotation.set(0, rotation, 0); // Apply rotation to the group
     }
   }, [position, rotation]);
 
-  // Обновление AnimationMixer
+  // Update AnimationMixer
   useFrame((state, delta) => {
     if (mixerRef.current) {
       mixerRef.current.update(delta);
@@ -72,15 +73,15 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     playAnimation(animation, animation !== 'Idle');
   }, [animation]);
 
-  return modelRef.current ? <primitive object={modelRef.current} /> : null;
+  return <group ref={groupRef} />;
 };
 
-// Следование камеры за игроком
+// Camera follows the player
 const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
-  const distance = 10; // Расстояние от камеры до игрока
-  const height = 5; // Высота камеры относительно игрока
-  const smoothFactor = 0.1; // Для плавности движения камеры
+  const distance = 10; // Distance from camera to player
+  const height = 5; // Camera height relative to player
+  const smoothFactor = 0.1; // For smooth camera movement
 
   useFrame(() => {
     if (camera) {
@@ -125,7 +126,7 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
-  // Подключение к серверу
+  // Connect to the server
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
@@ -152,14 +153,14 @@ const App = () => {
     socket.emit('requestPlayers');
   };
 
-  // Обработка движения игрока
+  // Handle player movement
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop(); // Останавливаем анимацию при отсутствии движения
+      handleStop(); // Stop animation when there's no movement
       return;
     }
 
-    movementDirectionRef.current = { x, y }; // Обновляем направление движения
+    movementDirectionRef.current = { x, y }; // Update movement direction
 
     const movementSpeed = 0.2;
     const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
@@ -174,15 +175,19 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
-    // Добавляем Math.PI / 2 к углу
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z) + Math.PI / 2;
 
-    setPlayerRotation(directionAngle); // Обновляем ротацию персонажа в сторону джойстика
-    setCameraTargetRotation(directionAngle); // Поворот камеры в сторону движения
+    // Adjust the calculation of directionAngle
+    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+
+    // Adjust for model's initial orientation if needed
+    directionAngle += Math.PI; // Try adding or subtracting Math.PI / 2 or Math.PI as needed
+
+    setPlayerRotation(directionAngle); // Update character rotation
+    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running'); // Анимация бега при движении
+      setCurrentAnimation('Running'); // Switch to running animation when moving
     }
 
     socket.emit('playerMove', {
@@ -193,12 +198,12 @@ const App = () => {
     });
   };
 
-  // Остановка персонажа и переключение на Idle
+  // Stop character and switch to Idle
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
     if (currentAnimation !== 'Idle') {
-      setCurrentAnimation('Idle'); // Переключаем на анимацию Idle
+      setCurrentAnimation('Idle'); // Switch to Idle animation
     }
 
     socket.emit('playerMove', {
@@ -219,7 +224,7 @@ const App = () => {
     return () => clearInterval(interval);
   }, [cameraRotation, playerPosition]);
 
-  // Плавное изменение вращения камеры
+  // Smoothly update camera rotation
   useEffect(() => {
     const updateCameraRotation = () => {
       setCameraRotation((prev) => {
@@ -230,7 +235,7 @@ const App = () => {
       });
     };
 
-    const interval = setInterval(updateCameraRotation, 16); // Обновляем каждые ~16ms (~60fps)
+    const interval = setInterval(updateCameraRotation, 16); // Update every ~16ms (~60fps)
     return () => clearInterval(interval);
   }, [cameraTargetRotation]);
 
