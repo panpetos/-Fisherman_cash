@@ -10,7 +10,8 @@ const socket = io('https://brandingsite.store:5000');
 // Компонент для загрузки и отображения модели игрока
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
+  // Убедитесь, что путь корректен и модель доступна
+  const { scene, animations } = useGLTF('https://example.com/models/Player.glb'); // Замените на правильный путь
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -25,7 +26,6 @@ const Player = ({ id, position, rotation, animationName }) => {
   }, [animationName, actions]);
 
   useEffect(() => {
-    // Обновляем позицию и ротацию на каждом кадре
     if (group.current) {
       group.current.position.set(...position);
       group.current.rotation.set(0, rotation, 0);
