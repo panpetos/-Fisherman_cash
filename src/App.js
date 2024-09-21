@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, extend, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Vector3, Color, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
-
-extend({});
 
 let socket;
 
@@ -22,6 +20,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     loader.load(
       modelPath,
       (gltfModel) => {
+        // Ищем узел модели для вращения
         modelRef.current = gltfModel.scene;
 
         // Удаляем треки вращения из анимаций
@@ -59,7 +58,6 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
       modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа
-      modelRef.current.rotation.order = 'YXZ';
     }
   }, [position, rotation]);
 
@@ -176,7 +174,8 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    // Добавляем Math.PI / 2 к углу
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z) + Math.PI / 2;
 
     setPlayerRotation(directionAngle); // Обновляем ротацию персонажа в сторону джойстика
     setCameraTargetRotation(directionAngle); // Поворот камеры в сторону движения
