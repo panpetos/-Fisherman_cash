@@ -7,7 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation, sliderRotation }) => {
+const Fisherman = ({ position, rotation, animation }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation, sliderRotation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation + sliderRotation, 0);
+      groupRef.current.rotation.set(0, rotation, 0);
     }
   });
 
@@ -190,8 +190,8 @@ const App = () => {
     let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
     directionAngle += Math.PI;
 
-    setPlayerRotation(directionAngle);
-    setCameraTargetRotation(directionAngle);
+    setPlayerRotation(directionAngle + sliderRotation);
+    setCameraTargetRotation(directionAngle + sliderRotation);
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
@@ -204,7 +204,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle,
+      rotation: directionAngle + sliderRotation,
       animation: 'Running',
     });
   };
@@ -235,7 +235,7 @@ const App = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [cameraRotation, playerPosition]);
+  }, [cameraRotation, playerPosition, sliderRotation]);
 
   // Smoothly update camera rotation
   useEffect(() => {
@@ -312,7 +312,6 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
-                  sliderRotation={sliderRotation}
                 />
               ))}
               <TexturedFloor />
