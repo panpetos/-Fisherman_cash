@@ -11,7 +11,7 @@ const socket = io('https://brandingsite.store:5000');
 const Player = ({ id, position, rotation, animationName }) => {
   const group = useRef();
   // Убедитесь, что путь корректен и модель доступна
-  const { scene, animations } = useGLTF('https://example.com/models/Player.glb'); // Замените на правильный путь
+  const { scene, animations } = useGLTF('/public/fisherman.glb'); // Замените на правильный путь
   const { actions } = useAnimations(animations, group);
 
   useEffect(() => {
@@ -79,7 +79,7 @@ const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('St');
+  const [animationName, setAnimationName] = useState('Idle');
   const [players, setPlayers] = useState([]);
 
   useEffect(() => {
@@ -130,10 +130,10 @@ const App = () => {
     setPlayerPosition(newPosition.toArray());
 
     if (y !== 0 || x !== 0) {
-      setAnimationName('Run');
+      setAnimationName('Running');
       setPlayerRotation(Math.atan2(y, x) + 1.5); 
     } else {
-      setAnimationName('St');
+      setAnimationName('Idle');
     }
 
     // Отправляем данные движения на сервер
@@ -141,17 +141,17 @@ const App = () => {
       id: socket.id,
       position: newPosition.toArray(),
       rotation: Math.atan2(y, x) + 1.5,
-      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+      animationName: y !== 0 || x !== 0 ? 'Running' : 'Idle',
     });
   };
 
   const handleStop = () => {
-    setAnimationName('St');
+    setAnimationName('Idle');
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'St',
+      animationName: 'Idle',
     });
   };
 
