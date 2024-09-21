@@ -1,88 +1,151 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, useAnimations, useTexture } from '@react-three/drei';
-import { Vector3 } from 'three';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Vector3, Color, TextureLoader, AnimationMixer, AnimationClip } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
-const socket = io('https://brandingsite.store:5000');
+let socket;
 
-// Компонент для загрузки и отображения модели игрока
-const Player = ({ id, position, rotation, animationName }) => {
-  const group = useRef();
-  const { scene, animations } = useGLTF('/models/Player.glb');
-  const { actions } = useAnimations(animations, group);
+const Fisherman = ({ position, rotation, tiltX, tiltZ, animation, sliderRotation }) => {
+  const groupRef = useRef();
+  const mixerRef = useRef();
+  const animationsRef = useRef();
 
-  useEffect(() => {
-    if (actions && animationName) {
-      const action = actions[animationName];
-      action.reset().fadeIn(0.5).play();
-
-      return () => {
-        action.fadeOut(0.5).stop();
-      };
-    }
-  }, [animationName, actions]);
+  const modelPath = '/fisherman.glb';
 
   useEffect(() => {
-    // Обновляем позицию и ротацию на каждом кадре
-    if (group.current) {
-      group.current.position.set(...position);
-      group.current.rotation.set(0, rotation, 0);
-    }
-  }, [position, rotation]);
+    const loader = new GLTFLoader();
+    loader.load(
+      modelPath,
+      (gltfModel) => {
+        groupRef.current.add(gltfModel.scene);
 
-  return (
-    <group ref={group}>
-      <primitive object={scene} />
-    </group>
-  );
+        animationsRef.current = gltfModel.animations.map((clip) => {
+          const tracks = clip.tracks.filter((track) => !track.name.includes('rotation'));
+          return new AnimationClip(clip.name, clip.duration, tracks);
+        });
+
+        mixerRef.current = new AnimationMixer(gltfModel.scene);
+
+        playAnimation('Idle');
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading model:', error);
+      }
+    );
+  }, []);
+
+  const playAnimation = (animationName, loop = true) => {
+    if (!animationsRef.current || !mixerRef.current) return;
+    const animationClip = animationsRef.current.find((clip) => clip.name === animationName);
+    if (animationClip) {
+      mixerRef.current.stopAllAction();
+      const action = mixerRef.current.clipAction(animationClip);
+      action.reset();
+      action.setLoop(loop ? Infinity : 1);
+      action.play();
+    }
+  };
+
+  useEffect(() => {
+    playAnimation(animation, animation !== 'Idle');
+  }, [animation]);
+
+  useFrame((state, delta) => {
+    if (mixerRef.current) {
+      mixerRef.current.update(delta);
+    }
+
+    if (groupRef.current) {
+      groupRef.current.position.set(...position);
+      groupRef.current.rotation.set(tiltX, rotation + sliderRotation, tiltZ);
+    }
+  });
+
+  return <group ref={groupRef} />;
 };
 
-// Компонент для камеры от третьего лица
-const FollowCamera = ({ playerPosition, cameraRotation }) => {
+// Camera follows the player
+const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
-  const distance = 5;
-  const height = 2;
+  const distance = 10; // Distance from camera to player
+  const height = 5; // Camera height relative to player
+  const smoothFactor = 0.1; // For smooth camera movement
 
   useFrame(() => {
     if (camera) {
+      const targetRotation = isPlayerMoving ? cameraTargetRotation : cameraRotation;
+      const currentRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
       const offset = new Vector3(
-        -Math.sin(cameraRotation) * distance,
+        -Math.sin(currentRotation) * distance,
         height,
-        Math.cos(cameraRotation) * distance
+        Math.cos(currentRotation) * distance
       );
-
-      const targetPosition = new Vector3(...playerPosition).add(offset);
-      camera.position.copy(targetPosition);
+      camera.position.copy(new Vector3(...playerPosition).add(offset));
       camera.lookAt(new Vector3(...playerPosition));
+      camera.rotation.order = 'YXZ';
     }
   });
 
   return null;
 };
 
-// Компонент для пола
 const TexturedFloor = () => {
-  const texture = useTexture('https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg');
-  
+  const texture = useLoader(
+    TextureLoader,
+    'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
+  );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
-      <meshStandardMaterial map={texture} />
+      <meshBasicMaterial map={texture} />
     </mesh>
   );
 };
 
-// Главный компонент приложения
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
   const [cameraRotation, setCameraRotation] = useState(0);
-  const [animationName, setAnimationName] = useState('St');
-  const [players, setPlayers] = useState([]);
+  const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
+  const [players, setPlayers] = useState({});
+  const [currentAnimation, setCurrentAnimation] = useState('Idle');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isPlayerMoving, setIsPlayerMoving] = useState(false);
+  const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [joystickDirection, setJoystickDirection] = useState('');
+  const [sliderRotation, setSliderRotation] = useState(0);
+  const [tiltX, setTiltX] = useState(0);
+  const [tiltZ, setTiltZ] = useState(0);
 
-  useEffect(() => {
+  // Function to get direction name from x and y
+  const getDirectionName = (x, y) => {
+    if (x === 0 && y === 0) return 'center';
+
+    const angle = Math.atan2(y, x) * (180 / Math.PI);
+    let direction = '';
+
+    if (angle >= -22.5 && angle < 22.5) direction = 'right';
+    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
+    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
+    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
+    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
+    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
+    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
+    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
+
+    return direction;
+  };
+
+  // Connect to the server
+  const handleConnect = () => {
+    setIsLoading(true);
+    setIsConnected(true);
+    socket = io('https://brandingsite.store:5000');
+
     socket.on('connect', () => {
       console.log('Connected to server with id:', socket.id);
     });
@@ -95,32 +158,29 @@ const App = () => {
       setPlayers(updatedPlayers);
     });
 
-    return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('updatePlayers');
-    };
-  }, []);
+    socket.on('initPlayer', (player, allPlayers) => {
+      setPlayers(allPlayers);
+      setPlayerPosition(player.position);
+      setIsLoading(false);
+    });
 
-  const handleMove = (event) => {
-    const { x, y } = event;
+    socket.emit('requestPlayers');
+  };
+
+  // Handle player movement
+  const handleMove = ({ x, y }) => {
+    if (x === 0 && y === 0) {
+      handleStop(); // Stop animation when there's no movement
+      return;
+    }
+
+    movementDirectionRef.current = { x, y }; // Update movement direction
+
     const movementSpeed = 0.2;
-
-    const moveDirection = new Vector3(
-      Math.sin(cameraRotation),
-      0,
-      Math.cos(cameraRotation)
-    ).normalize();
-
-    const rightVector = new Vector3(
-      Math.sin(cameraRotation + Math.PI / 2),
-      0,
-      Math.cos(cameraRotation + Math.PI / 2)
-    ).normalize();
-
-    const forwardMovement = moveDirection.clone().multiplyScalar(-y * movementSpeed);
+    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
+    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
     const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -128,98 +188,175 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
+    const movementDirection = forwardMovement.clone().add(rightMovement);
 
-    if (y !== 0 || x !== 0) {
-      setAnimationName('Run');
-      setPlayerRotation(Math.atan2(y, x) + 1.5); 
-    } else {
-      setAnimationName('St');
+    // Adjust the calculation of directionAngle
+    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    directionAngle += Math.PI;
+
+    setPlayerRotation(directionAngle);
+    setCameraTargetRotation(directionAngle);
+    setIsPlayerMoving(true);
+
+    if (currentAnimation !== 'Running') {
+      setCurrentAnimation('Running');
     }
 
-    // Отправляем данные движения на сервер
+    // Get the direction name and update state
+    const directionName = getDirectionName(x, y);
+    setJoystickDirection(directionName);
+
+    // Calculate tilt based on joystick position
+    const maxTilt = Math.PI / 18; // 10 degrees
+    setTiltX(-y * maxTilt);
+    setTiltZ(x * maxTilt);
+
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: Math.atan2(y, x) + 1.5,
-      animationName: y !== 0 || x !== 0 ? 'Run' : 'St',
+      rotation: directionAngle,
+      animation: 'Running',
     });
   };
 
+  // Stop character and switch to Idle
   const handleStop = () => {
-    setAnimationName('St');
+    movementDirectionRef.current = { x: 0, y: 0 };
+    setIsPlayerMoving(false);
+    if (currentAnimation !== 'Idle') {
+      setCurrentAnimation('Idle');
+    }
+
+    setJoystickDirection('center');
+    setTiltX(0);
+    setTiltZ(0);
+
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
       rotation: playerRotation,
-      animationName: 'St',
+      animation: 'Idle',
     });
   };
 
-  const handleFishing = () => {
-    setAnimationName('Fs_2');
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animationName: 'Fs_2',
-    });
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
+        handleMove(movementDirectionRef.current);
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [cameraRotation, playerPosition]);
+
+  // Smoothly update camera rotation
+  useEffect(() => {
+    const updateCameraRotation = () => {
+      setCameraRotation((prev) => {
+        const deltaRotation = cameraTargetRotation - prev;
+        const normalizedDelta = ((deltaRotation + Math.PI) % (2 * Math.PI)) - Math.PI;
+        const newRotation = prev + normalizedDelta * 0.1;
+        return newRotation % (2 * Math.PI);
+      });
+    };
+
+    const interval = setInterval(updateCameraRotation, 16); // Update every ~16ms (~60fps)
+    return () => clearInterval(interval);
+  }, [cameraTargetRotation]);
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative', backgroundImage: 'url(/nebo.jpg)', backgroundSize: 'cover' }}>
-      <Canvas>
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        <FollowCamera playerPosition={playerPosition} cameraRotation={cameraRotation} />
-
-        {/* Собственная модель игрока */}
-        <Player id={socket.id} position={playerPosition} rotation={playerRotation} animationName={animationName} />
-
-        <TexturedFloor />
-        
-        {/* Другие игроки */}
-        {players.map((player) => (
-          player.id !== socket.id && (
-            <Player
-              key={player.id}
-              id={player.id}
-              position={player.position}
-              rotation={player.rotation}
-              animationName={player.animationName}
-            />
-          )
-        ))}
-      </Canvas>
-
-      {/* Джойстик для управления персонажем */}
-      <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-        <Joystick 
-          size={80} 
-          baseColor="gray" 
-          stickColor="black" 
-          move={handleMove} 
-          stop={handleStop} 
-        />
-      </div>
-
-      {/* Кнопка для заброса удочки */}
-      <div style={{ position: 'absolute', bottom: 20, left: 20 }}>
-        <button 
-          onClick={handleFishing}
+    <div
+      style={{
+        height: '100vh',
+        width: '100vw',
+        position: 'relative',
+        backgroundImage: 'url(/nebo.jpg)',
+        backgroundSize: 'cover',
+      }}
+    >
+      {!isConnected ? (
+        <div
           style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            backgroundColor: 'blue',
-            color: 'white',
-            border: 'none',
-            fontSize: '16px',
-            cursor: 'pointer'
+            height: '100vh',
+            width: '100vw',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundImage: 'url(/nebo.jpg)',
+            backgroundSize: 'cover',
           }}
         >
-          Забросить
-        </button>
-      </div>
+          <h1>FunFishing</h1>
+          <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
+            Войти в общий сервер
+          </button>
+        </div>
+      ) : isLoading ? (
+        <div
+          style={{
+            height: '100vh',
+            width: '100vw',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundImage: 'url(/nebo.jpg)',
+            backgroundSize: 'cover',
+          }}
+        >
+          <h1>Загрузка...</h1>
+        </div>
+      ) : (
+        <>
+          <Canvas>
+            <Suspense fallback={null}>
+              <ambientLight />
+              <pointLight position={[10, 10, 10]} />
+              <FollowCamera
+                playerPosition={playerPosition}
+                cameraRotation={cameraRotation}
+                cameraTargetRotation={cameraTargetRotation}
+                isPlayerMoving={isPlayerMoving}
+              />
+              {Object.keys(players).map((id) => (
+                <Fisherman
+                  key={id}
+                  position={players[id].position}
+                  rotation={players[id].rotation || 0}
+                  animation={players[id].animation || 'Idle'}
+                  sliderRotation={sliderRotation}
+                  tiltX={tiltX}
+                  tiltZ={tiltZ}
+                />
+              ))}
+              <TexturedFloor />
+            </Suspense>
+          </Canvas>
+
+          <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
+            <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+          </div>
+
+          <div style={{ position: 'absolute', bottom: 20, left: 20, color: 'white', fontSize: '18px' }}>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value={(sliderRotation * 180) / Math.PI}
+              onChange={(e) => setSliderRotation((parseFloat(e.target.value) * Math.PI) / 180)}
+            />
+            <div>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
+          </div>
+
+          <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
+            Направление джойстика: {joystickDirection}
+          </div>
+
+          <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
+            Игроков онлайн: {Object.keys(players).length}
+          </div>
+        </>
+      )}
     </div>
   );
 };
