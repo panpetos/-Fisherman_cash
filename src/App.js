@@ -49,7 +49,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0);
+      modelRef.current.rotation.set(0, rotation, 0); // Обновляем поворот в зависимости от движения
     }
   }, [position, rotation]);
 
@@ -142,36 +142,40 @@ const App = () => {
 
   // Обработка движения игрока
   const handleMove = ({ x, y }) => {
-    const movementSpeed = 0.2;
-    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
-    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
-    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
-    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
-    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
-    
-    setPlayerPosition(newPosition.toArray());
-    const movementDirection = forwardMovement.clone().add(rightMovement);
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    setPlayerRotation(directionAngle); 
-    setCameraTargetRotation(directionAngle); 
-    setIsPlayerMoving(true); 
-
-    if (x !== 0 || y !== 0) {
-      setCurrentAnimation('Running');
+    if (x === 0 && y === 0) {
+      handleStop();
+      return;
     }
+
+    const movementSpeed = 0.2;
+    const movementDirection = new Vector3(x, 0, -y).normalize();
+    const newPosition = new Vector3(
+      playerPosition[0] + movementDirection.x * movementSpeed,
+      playerPosition[1],
+      playerPosition[2] + movementDirection.z * movementSpeed
+    );
+
+    // Рассчитываем угол поворота в сторону движения
+    const angle = Math.atan2(-x, -y);
+    setPlayerRotation(angle); 
+    setCameraTargetRotation(angle); // Поворот камеры в сторону движения
+    setPlayerPosition(newPosition.toArray());
+    setIsPlayerMoving(true);
+
+    setCurrentAnimation('Running'); // При движении - анимация "Running"
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle, 
+      rotation: angle, 
       animation: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setIsPlayerMoving(false); 
-    setCurrentAnimation('Idle');
+    setIsPlayerMoving(false);
+    setCurrentAnimation('Idle'); // При остановке - анимация "Idle"
 
     socket.emit('playerMove', {
       id: socket.id,
