@@ -68,38 +68,25 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
 };
 
 // Следование камеры за игроком
-const FollowCamera = ({ playerPosition, playerRotation, cameraDistance, isMoving }) => {
+const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
   const { camera } = useThree();
-  const [rotateCamera, setRotateCamera] = useState(false);
-  const rotateTimeoutRef = useRef(null);
+  const distance = 10; // Расстояние от камеры до игрока
+  const height = 5; // Высота камеры относительно игрока
+  const smoothFactor = 0.05; // Для плавности движения камеры
 
   useFrame(() => {
-    if (!isMoving) {
-      if (rotateCamera) {
-        const targetPosition = new Vector3(
-          playerPosition[0] - Math.sin(playerRotation) * cameraDistance,
-          playerPosition[1] + 5,
-          playerPosition[2] - Math.cos(playerRotation) * cameraDistance
-        );
-        camera.position.lerp(targetPosition, 0.05);
-        camera.lookAt(new Vector3(...playerPosition));
-      }
-    } else {
-      camera.lookAt(new Vector3(...playerPosition)); // Камера фиксирована во время движения
+    if (camera) {
+      const targetRotation = isPlayerMoving ? cameraTargetRotation : cameraRotation;
+      const currentRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
+      const offset = new Vector3(
+        -Math.sin(currentRotation) * distance,
+        height,
+        Math.cos(currentRotation) * distance
+      );
+      camera.position.copy(new Vector3(...playerPosition).add(offset));
+      camera.lookAt(new Vector3(...playerPosition));
     }
   });
-
-  // Поворот камеры через 2 секунды после остановки
-  useEffect(() => {
-    if (!isMoving) {
-      rotateTimeoutRef.current = setTimeout(() => {
-        setRotateCamera(true);
-      }, 2000);
-    } else {
-      clearTimeout(rotateTimeoutRef.current);
-      setRotateCamera(false);
-    }
-  }, [isMoving, playerRotation]);
 
   return null;
 };
@@ -117,12 +104,13 @@ const TexturedFloor = () => {
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0); 
+  const [cameraRotation, setCameraRotation] = useState(0);
+  const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [isMoving, setIsMoving] = useState(false); // Для отслеживания движения
-  const [cameraDistance, setCameraDistance] = useState(10); 
+  const [isPlayerMoving, setIsPlayerMoving] = useState(false); // Для отслеживания движения
   const movementDirectionRef = useRef({ x: 0, y: 0 });
 
   // Подключение к серверу
@@ -154,16 +142,19 @@ const App = () => {
 
   // Обработка движения игрока
   const handleMove = ({ x, y }) => {
-    const movementSpeed = 0.1;
-    const movementVector = new Vector3(x, 0, -y).normalize().multiplyScalar(movementSpeed);
-    const newPosition = new Vector3(...playerPosition).add(movementVector);
-
-    // Рассчитываем угол поворота в сторону движения
-    const angle = Math.atan2(-x, -y);
-    setPlayerRotation(angle); 
-
+    const movementSpeed = 0.2;
+    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
+    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
+    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
+    
     setPlayerPosition(newPosition.toArray());
-    setIsMoving(true); // Игрок движется
+    const movementDirection = forwardMovement.clone().add(rightMovement);
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    setPlayerRotation(directionAngle); 
+    setCameraTargetRotation(directionAngle); 
+    setIsPlayerMoving(true); 
 
     if (x !== 0 || y !== 0) {
       setCurrentAnimation('Running');
@@ -172,14 +163,14 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: angle, 
+      rotation: directionAngle, 
       animation: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setIsMoving(false); // Игрок остановился
+    setIsPlayerMoving(false); 
     setCurrentAnimation('Idle');
 
     socket.emit('playerMove', {
@@ -190,26 +181,32 @@ const App = () => {
     });
   };
 
-  const triggerAnimation = (animationName) => {
-    setCurrentAnimation(animationName);
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: playerPosition,
-      rotation: playerRotation,
-      animation: animationName,
-    });
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
+        handleMove(movementDirectionRef.current);
+      }
+    }, 50);
 
-    // После 1 секунды возвращаемся в Idle
-    setTimeout(() => {
-      setCurrentAnimation('Idle');
-      socket.emit('playerMove', {
-        id: socket.id,
-        position: playerPosition,
-        rotation: playerRotation,
-        animation: 'Idle',
+    return () => clearInterval(interval);
+  }, [cameraRotation, playerPosition]);
+
+  // Плавное изменение вращения камеры
+  useEffect(() => {
+    const updateCameraRotation = () => {
+      setCameraRotation(prev => {
+        const deltaRotation = cameraTargetRotation - prev;
+        const normalizedDelta = (deltaRotation + Math.PI) % (2 * Math.PI) - Math.PI;
+        const newRotation = prev + normalizedDelta * 0.1;
+        return newRotation % (2 * Math.PI);
       });
-    }, 1000);
-  };
+    };
+
+    if (!isPlayerMoving) {
+      const interval = setInterval(updateCameraRotation, 100);
+      return () => clearInterval(interval);
+    }
+  }, [isPlayerMoving, cameraTargetRotation]);
 
   if (!isConnected) {
     return (
@@ -267,9 +264,9 @@ const App = () => {
           <pointLight position={[10, 10, 10]} />
           <FollowCamera
             playerPosition={playerPosition}
-            playerRotation={playerRotation}
-            cameraDistance={cameraDistance}
-            isMoving={isMoving} // Передаем состояние движения
+            cameraRotation={cameraRotation}
+            cameraTargetRotation={cameraTargetRotation}
+            isPlayerMoving={isPlayerMoving} 
           />
           {Object.keys(players).map((id) => (
             <Fisherman
@@ -291,42 +288,6 @@ const App = () => {
 
       <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
         Игроков онлайн: {Object.keys(players).length}
-      </div>
-
-      {/* Регулятор расстояния камеры */}
-      <div style={{ position: 'absolute', bottom: 20, left: 20, color: 'white' }}>
-        <label>Регулятор расстояния камеры:</label>
-        <input
-          type="range"
-          min="5"
-          max="20"
-          value={cameraDistance}
-          onChange={(e) => setCameraDistance(Number(e.target.value))}
-        />
-      </div>
-
-      <div style={{ position: 'absolute', bottom: 150, left: 20, display: 'flex', flexDirection: 'column' }}>
-        <button onClick={() => triggerAnimation('Fishing Idle')} style={{ padding: '10px', margin: '5px' }}>
-          Рыбалка (Idle)
-        </button>
-        <button onClick={() => triggerAnimation('Fishing Cast')} style={{ padding: '10px', margin: '5px' }}>
-          Забросить удочку
-        </button>
-        <button onClick={() => triggerAnimation('Jump')} style={{ padding: '10px', margin: '5px' }}>
-          Прыжок
-        </button>
-        <button onClick={() => triggerAnimation('Jumping Down')} style={{ padding: '10px', margin: '5px' }}>
-          Прыжок вниз
-        </button>
-        <button onClick={() => triggerAnimation('Jumping Up')} style={{ padding: '10px', margin: '5px' }}>
-          Прыжок вверх
-        </button>
-        <button onClick={() => triggerAnimation('Walking')} style={{ padding: '10px', margin: '5px' }}>
-          Идти
-        </button>
-        <button onClick={() => triggerAnimation('Taking Item')} style={{ padding: '10px', margin: '5px' }}>
-          Взять предмет
-        </button>
       </div>
     </div>
   );
