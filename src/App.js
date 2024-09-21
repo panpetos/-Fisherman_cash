@@ -49,7 +49,7 @@ const Fisherman = ({ position, rotation, animation, isLocalPlayer, color }) => {
   useEffect(() => {
     if (modelRef.current) {
       modelRef.current.position.set(...position);
-      modelRef.current.rotation.set(0, rotation, 0); // Вращаем персонажа по оси Y
+      modelRef.current.rotation.set(0, rotation, 0); // Поворот персонажа в зависимости от направления движения
     }
   }, [position, rotation]);
 
@@ -154,8 +154,11 @@ const App = () => {
     setPlayerRotation(angle); // Обновляем угол поворота персонажа
 
     // Вычисляем новое положение персонажа
-    const forwardMovement = new Vector3(-Math.sin(angle), 0, Math.cos(angle)).multiplyScalar(movementSpeed);
-    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z);
+    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
+    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
+    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
+    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const newPosition = new Vector3(playerPosition[0] + forwardMovement.x + rightMovement.x, playerPosition[1], playerPosition[2] + forwardMovement.z + rightMovement.z);
 
     setPlayerPosition(newPosition.toArray());
     setCameraTargetRotation(angle); // Поворот камеры в сторону движения
