@@ -75,7 +75,6 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
 
   useEffect(() => {
     if (!isMoving) {
-      // Если персонаж останавливается, запускаем таймер на 1 секунду перед поворотом камеры
       const timer = setTimeout(() => {
         setIsFollowing(false); // Камера начинает плавно следовать за игроком
       }, 1000);
@@ -182,13 +181,13 @@ const App = () => {
       return;
     }
 
-    movementDirectionRef.current = { x: -x, y: -y }; // Инвертируем оси для управления
+    movementDirectionRef.current = { x, y }; // Убираем инвертирование осей
 
     setIsMoving(true); // Устанавливаем флаг движения в true
 
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Инвертированное движение
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертированное движение
+    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад
+    const rightMovement = new Vector3(x * movementSpeed, 0, 0); // Движение влево-вправо
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -197,15 +196,15 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе инвертированного управления
-    const directionAngle = Math.atan2(-x, y);
+    // Рассчитываем угол вращения на основе направления движения
+    const directionAngle = Math.atan2(x, y);
     setPlayerRotation(directionAngle); // Устанавливаем угол поворота
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    const directionName = getDirectionName(-x, -y);
+    const directionName = getDirectionName(x, y);
     setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
