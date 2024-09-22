@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Vector3, TextureLoader, AnimationMixer, AnimationClip } from 'three';
+import { Vector3, TextureLoader, AnimationMixer, AnimationClip, Euler } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -60,7 +60,8 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Направление движения по оси Y
+      // Используем правильный угол поворота на основе направления
+      groupRef.current.rotation.set(0, rotation, 0);
     }
   });
 
@@ -153,8 +154,9 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    const directionAngle = Math.atan2(x, y); // Вращение персонажа по направлению джойстика
-    setPlayerRotation(directionAngle); // Задание вращения в зависимости от джойстика
+    // Рассчитываем угол вращения на основе направления движения по осям x и y
+    const directionAngle = Math.atan2(x, y); 
+    setPlayerRotation(directionAngle); // Устанавливаем вращение персонажа в зависимости от джойстика
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
