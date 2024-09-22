@@ -155,8 +155,8 @@ const App = () => {
     setPlayerPosition(newPosition.toArray());
 
     // Рассчитываем угол вращения на основе направления джойстика
-    const directionAngle = Math.atan2(y, x); // угол в радианах
-    setPlayerRotation(directionAngle); // Устанавливаем вращение персонажа в зависимости от джойстика
+    const directionAngle = Math.atan2(x, y); // важно поменять на Math.atan2(x, y)
+    setPlayerRotation(-directionAngle); // Минус для правильного вращения в 3D-пространстве
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
@@ -168,7 +168,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle,
+      rotation: -directionAngle, // Минус угол здесь для того, чтобы синхронизировать с игровым пространством
       animation: 'Running',
     });
   };
