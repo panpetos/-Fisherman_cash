@@ -89,7 +89,6 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [rotationAngle, setRotationAngle] = useState(0); // Контроллер угла поворота через слайдер
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -129,6 +128,7 @@ const App = () => {
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
+      setPlayerRotation(player.rotation); // Инициализация угла поворота
       setIsLoading(false);
     });
 
@@ -154,6 +154,10 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
+    // Рассчитываем угол вращения на основе направления джойстика
+    const directionAngle = Math.atan2(x, y);
+    setPlayerRotation(directionAngle); // Устанавливаем угол поворота
+
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
@@ -164,7 +168,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: playerRotation, // Используем контроллер угла поворота
+      rotation: directionAngle, // Отправляем угол поворота на сервер
       animation: 'Running',
     });
   };
@@ -180,15 +184,9 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
-      rotation: playerRotation,
+      rotation: playerRotation, // Отправляем текущий угол поворота
       animation: 'Idle',
     });
-  };
-
-  // Контроллер угла поворота через слайдер
-  const handleRotationChange = (event) => {
-    const newRotation = parseFloat(event.target.value);
-    setPlayerRotation(newRotation); // Устанавливаем угол поворота через слайдер
   };
 
   useEffect(() => {
@@ -271,20 +269,6 @@ const App = () => {
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
-          </div>
-
-          {/* Ползунок для управления углом поворота */}
-          <div style={{ position: 'absolute', top: 150, left: 20 }}>
-            <label style={{ color: 'white', fontSize: '18px' }}>Угол поворота: {playerRotation.toFixed(2)} радиан</label>
-            <input
-              type="range"
-              min={-Math.PI}
-              max={Math.PI}
-              step={0.01}
-              value={playerRotation}
-              onChange={handleRotationChange}
-              style={{ width: '300px' }}
-            />
           </div>
         </>
       )}
