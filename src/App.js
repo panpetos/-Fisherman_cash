@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, Color, TextureLoader, AnimationMixer, AnimationClip } from 'three';
+import { Vector3, TextureLoader, AnimationMixer, AnimationClip, Euler } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, tiltX, tiltZ, animation, sliderRotation }) => {
+const Fisherman = ({ position, rotation, tiltX, tiltZ, animation }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, tiltX, tiltZ, animation, sliderRotation
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(tiltX, rotation + sliderRotation, tiltZ);
+      groupRef.current.rotation.set(tiltX, rotation, tiltZ);
     }
   });
 
@@ -117,7 +117,6 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [sliderRotation, setSliderRotation] = useState(0);
   const [tiltX, setTiltX] = useState(0);
   const [tiltZ, setTiltZ] = useState(0);
 
@@ -190,12 +189,10 @@ const App = () => {
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
 
-    // Adjust the calculation of directionAngle
-    let directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    directionAngle += Math.PI;
-
-    setPlayerRotation(directionAngle);
-    setCameraTargetRotation(directionAngle);
+    // Calculate the angle based on movement direction
+    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
+    setPlayerRotation(directionAngle); // Rotate player to face the movement direction
+    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
@@ -324,7 +321,6 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
-                  sliderRotation={sliderRotation}
                   tiltX={tiltX}
                   tiltZ={tiltZ}
                 />
@@ -335,17 +331,6 @@ const App = () => {
 
           <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
             <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
-          </div>
-
-          <div style={{ position: 'absolute', bottom: 20, left: 20, color: 'white', fontSize: '18px' }}>
-            <input
-              type="range"
-              min="0"
-              max="360"
-              value={(sliderRotation * 180) / Math.PI}
-              onChange={(e) => setSliderRotation((parseFloat(e.target.value) * Math.PI) / 180)}
-            />
-            <div>Вращение: {Math.round((sliderRotation * 180) / Math.PI)}°</div>
           </div>
 
           <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
