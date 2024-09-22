@@ -154,8 +154,8 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе направления джойстика
-    const directionAngle = Math.atan2(x, y);
+    // Рассчитываем угол вращения на основе направления джойстика (инвертируем ось y)
+    const directionAngle = Math.atan2(x, -y); // Инвертируем ось y, чтобы поменять вверх и вниз
     setPlayerRotation(directionAngle); // Устанавливаем угол поворота
 
     if (currentAnimation !== 'Running') {
