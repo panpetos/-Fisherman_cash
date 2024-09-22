@@ -76,9 +76,9 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
   useEffect(() => {
     if (!isMoving) {
       // Если персонаж останавливается, запускаем таймер на 1 секунду перед поворотом камеры
-      const timer = setTimeout(() => {
+      /*const timer = setTimeout(() => {
         setIsFollowing(false); // Камера начинает плавно следовать за игроком
-      }, 1000);
+      }, 1000);*/
 
       return () => clearTimeout(timer);
     } else {
@@ -86,7 +86,7 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
     }
   }, [isMoving]);
 
- /* useFrame((state, delta) => {
+  useFrame((state, delta) => {
     const smoothFactor = 0.05; // Плавность поворота камеры
 
     // Позиция камеры позади персонажа с учетом смещения
@@ -102,7 +102,7 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
 
     // Направляем камеру на персонажа
     camera.lookAt(new Vector3(...targetPosition));
-  });*/
+  });
 
   return null;
 };
