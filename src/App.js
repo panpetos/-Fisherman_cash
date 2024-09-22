@@ -130,8 +130,6 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
   const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
-  const [lastDirection, setLastDirection] = useState([0, 0]); // Последнее направление движения для остановки
-  const [cameraAdjusted, setCameraAdjusted] = useState(false); // Флаг, что камера выровнялась
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -180,12 +178,11 @@ const App = () => {
 
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop();
+      handleStop(); 
       return;
     }
 
     movementDirectionRef.current = { x: -x, y: -y }; // Инвертируем оси для управления
-    setLastDirection([x, y]); // Сохраняем последнее направление джойстика
 
     setIsMoving(true); // Устанавливаем флаг движения в true
 
@@ -220,18 +217,14 @@ const App = () => {
   };
 
   const handleStop = () => {
+    movementDirectionRef.current = { x: 0, y: 0 };
     setIsMoving(false); // Устанавливаем флаг движения в false
 
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
 
-    // Персонаж теперь останавливается по последнему направлению
-    const [lastX, lastY] = lastDirection;
-    if (lastX !== 0 || lastY !== 0) {
-      const directionAngle = Math.atan2(lastX, -lastY);
-      setPlayerRotation(directionAngle); // Остановка по последнему направлению
-    }
+    setJoystickDirection('center');
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -242,12 +235,6 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (!isMoving && !cameraAdjusted) {
-      setTimeout(() => setCameraAdjusted(true), 1000); // 1 секунда до выравнивания камеры
-    }
-  }, [isMoving, cameraAdjusted]);
-
-  useEffect(() => {
     const interval = setInterval(() => {
       if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
         handleMove(movementDirectionRef.current);
@@ -256,22 +243,6 @@ const App = () => {
 
     return () => clearInterval(interval);
   }, [playerPosition]);
-
-  // После выравнивания камеры обновляем направление джойстика относительно текущего поворота камеры
-  const transformJoystickDirection = (x, y) => {
-    if (cameraAdjusted) {
-      const sin = Math.sin(playerRotation);
-      const cos = Math.cos(playerRotation);
-
-      // Поворачиваем направление джойстика относительно текущего направления персонажа
-      const newX = cos * x - sin * y;
-      const newY = sin * x + cos * y;
-
-      return { x: newX, y: newY };
-    }
-
-    return { x, y };
-  };
 
   return (
     <div
@@ -335,16 +306,7 @@ const App = () => {
           </Canvas>
 
           <div style={{ position: 'absolute', right: 20, bottom: 20 }}>
-            <Joystick
-              size={80}
-              baseColor="gray"
-              stickColor="black"
-              move={(data) => {
-                const { x, y } = transformJoystickDirection(data.x, data.y);
-                handleMove({ x, y });
-              }}
-              stop={handleStop}
-            />
+            <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
           </div>
 
           <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
