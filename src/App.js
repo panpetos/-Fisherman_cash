@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Vector3, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
@@ -65,6 +65,22 @@ const Fisherman = ({ position, rotation, animation }) => {
   });
 
   return <group ref={groupRef} />;
+};
+
+const FollowCamera = ({ targetPosition, targetRotation }) => {
+  const { camera } = useThree();
+  const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
+
+  useFrame(() => {
+    // Позиция камеры позади персонажа с учетом смещения
+    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), targetRotation));
+    camera.position.copy(newCameraPosition);
+
+    // Направляем камеру на персонажа
+    camera.lookAt(new Vector3(...targetPosition));
+  });
+
+  return null;
 };
 
 const TexturedFloor = () => {
@@ -247,6 +263,7 @@ const App = () => {
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
+              <FollowCamera targetPosition={playerPosition} targetRotation={playerRotation} />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
