@@ -76,9 +76,9 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
   useEffect(() => {
     if (!isMoving) {
       // Если персонаж останавливается, запускаем таймер на 1 секунду перед поворотом камеры
-      /*const timer = setTimeout(() => {
+      const timer = setTimeout(() => {
         setIsFollowing(false); // Камера начинает плавно следовать за игроком
-      }, 1000);*/
+      }, 1000);
 
       return () => clearTimeout(timer);
     } else {
