@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, TextureLoader, AnimationMixer, AnimationClip, Euler } from 'three';
+import { Vector3, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, tiltX, tiltZ, animation }) => {
+const Fisherman = ({ position, rotation, animation }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, tiltX, tiltZ, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(tiltX, rotation, tiltZ);
+      groupRef.current.rotation.set(0, rotation, 0); // Убираем наклоны, только вращение по оси Y
     }
   });
 
@@ -117,10 +117,7 @@ const App = () => {
   const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [tiltX, setTiltX] = useState(0);
-  const [tiltZ, setTiltZ] = useState(0);
 
-  // Function to get direction name from x and y
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
 
@@ -139,7 +136,6 @@ const App = () => {
     return direction;
   };
 
-  // Connect to the server
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
@@ -166,14 +162,13 @@ const App = () => {
     socket.emit('requestPlayers');
   };
 
-  // Handle player movement
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop(); // Stop animation when there's no movement
+      handleStop(); 
       return;
     }
 
-    movementDirectionRef.current = { x, y }; // Update movement direction
+    movementDirectionRef.current = { x, y };
 
     const movementSpeed = 0.2;
     const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
@@ -189,24 +184,17 @@ const App = () => {
     setPlayerPosition(newPosition.toArray());
     const movementDirection = forwardMovement.clone().add(rightMovement);
 
-    // Calculate the angle based on movement direction
     const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    setPlayerRotation(directionAngle); // Rotate player to face the movement direction
-    setCameraTargetRotation(directionAngle); // Rotate camera towards movement
+    setPlayerRotation(directionAngle); 
+    setCameraTargetRotation(directionAngle); 
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    // Get the direction name and update state
     const directionName = getDirectionName(x, y);
     setJoystickDirection(directionName);
-
-    // Calculate tilt based on joystick position
-    const maxTilt = Math.PI / 18; // 10 degrees
-    setTiltX(-y * maxTilt);
-    setTiltZ(x * maxTilt);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -216,7 +204,6 @@ const App = () => {
     });
   };
 
-  // Stop character and switch to Idle
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
     setIsPlayerMoving(false);
@@ -225,8 +212,6 @@ const App = () => {
     }
 
     setJoystickDirection('center');
-    setTiltX(0);
-    setTiltZ(0);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -246,7 +231,6 @@ const App = () => {
     return () => clearInterval(interval);
   }, [cameraRotation, playerPosition]);
 
-  // Smoothly update camera rotation
   useEffect(() => {
     const updateCameraRotation = () => {
       setCameraRotation((prev) => {
@@ -257,7 +241,7 @@ const App = () => {
       });
     };
 
-    const interval = setInterval(updateCameraRotation, 16); // Update every ~16ms (~60fps)
+    const interval = setInterval(updateCameraRotation, 16);
     return () => clearInterval(interval);
   }, [cameraTargetRotation]);
 
@@ -321,8 +305,6 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
-                  tiltX={tiltX}
-                  tiltZ={tiltZ}
                 />
               ))}
               <TexturedFloor />
