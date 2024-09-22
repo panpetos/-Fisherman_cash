@@ -180,33 +180,33 @@ const App = () => {
       handleStop(); 
       return;
     }
-  
-    movementDirectionRef.current = { x, y }; // Не инвертируем оси
-  
+
+    movementDirectionRef.current = { x, y }; // Оставляем оси как есть
+
     setIsMoving(true); // Устанавливаем флаг движения в true
-  
+
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад без изменений
-    const rightMovement = new Vector3(x * movementSpeed, 0, 0); // Движение влево-вправо без инверсии
+    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад
+    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертируем движение по оси X
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
       playerPosition[2] + forwardMovement.z + rightMovement.z
     );
-  
+
     setPlayerPosition(newPosition.toArray());
-  
-    // Рассчитываем угол вращения на основе направления движения
-    const directionAngle = Math.atan2(x, y); // Оставляем как есть, теперь ось X работает корректно
+
+    // Рассчитываем угол вращения на основе инвертированного направления движения по оси X
+    const directionAngle = Math.atan2(-x, y); // Инвертируем угол вращения
     setPlayerRotation(directionAngle); // Устанавливаем угол поворота
-  
+
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
-  
-    const directionName = getDirectionName(x, y); // Используем не инвертированные оси
+
+    const directionName = getDirectionName(-x, y); // Инвертируем ось X при отображении направления
     setJoystickDirection(directionName);
-  
+
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
@@ -214,7 +214,6 @@ const App = () => {
       animation: 'Running',
     });
   };
-  
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
