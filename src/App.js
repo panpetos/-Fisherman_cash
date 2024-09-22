@@ -86,7 +86,7 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
     }
   }, [isMoving]);
 
-  useFrame((state, delta) => {
+ /* useFrame((state, delta) => {
     const smoothFactor = 0.05; // Плавность поворота камеры
 
     // Позиция камеры позади персонажа с учетом смещения
@@ -102,7 +102,7 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
 
     // Направляем камеру на персонажа
     camera.lookAt(new Vector3(...targetPosition));
-  });
+  });*/
 
   return null;
 };
