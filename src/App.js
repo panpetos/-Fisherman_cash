@@ -90,6 +90,7 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
+  const [rotationAngle, setRotationAngle] = useState(0); // Контроллер угла поворота
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -156,7 +157,7 @@ const App = () => {
 
     // Рассчитываем угол вращения на основе направления джойстика
     const directionAngle = Math.atan2(x, y); // важно поменять на Math.atan2(x, y)
-    setPlayerRotation(-directionAngle); // Минус для правильного вращения в 3D-пространстве
+    setPlayerRotation(rotationAngle); // Используем контроллер угла вместо автоматики
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
@@ -168,7 +169,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: -directionAngle, // Минус угол здесь для того, чтобы синхронизировать с игровым пространством
+      rotation: rotationAngle, // Используем вручную установленный угол
       animation: 'Running',
     });
   };
@@ -189,6 +190,12 @@ const App = () => {
     });
   };
 
+  // Контроллер угла
+  const handleRotationChange = (event) => {
+    const newRotation = parseFloat(event.target.value);
+    setRotationAngle(newRotation);
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
@@ -197,7 +204,7 @@ const App = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [playerPosition]);
+  }, [playerPosition, rotationAngle]);
 
   return (
     <div
@@ -269,6 +276,20 @@ const App = () => {
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
+          </div>
+
+          {/* Добавляем слайдер для контроля угла поворота */}
+          <div style={{ position: 'absolute', top: 150, left: 20 }}>
+            <label style={{ color: 'white', fontSize: '18px' }}>Угол поворота: {rotationAngle.toFixed(2)} радиан</label>
+            <input
+              type="range"
+              min={-Math.PI}
+              max={Math.PI}
+              step={0.01}
+              value={rotationAngle}
+              onChange={handleRotationChange}
+              style={{ width: '300px' }}
+            />
           </div>
         </>
       )}
