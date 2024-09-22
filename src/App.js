@@ -67,13 +67,28 @@ const Fisherman = ({ position, rotation, animation }) => {
   return <group ref={groupRef} />;
 };
 
-const FollowCamera = ({ targetPosition, targetRotation }) => {
+const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
   const { camera } = useThree();
   const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
+  const [cameraRotation, setCameraRotation] = useState(targetRotation);
+  const [isFollowing, setIsFollowing] = useState(true); // Состояние для задержки поворота
+
+  useEffect(() => {
+    if (!isMoving) {
+      // Если персонаж останавливается, запускаем таймер на 1 секунду перед поворотом камеры
+      const timer = setTimeout(() => {
+        setCameraRotation(targetRotation);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    } else {
+      setIsFollowing(true); // Обновляем состояние для реального времени при движении
+    }
+  }, [isMoving, targetRotation]);
 
   useFrame(() => {
     // Позиция камеры позади персонажа с учетом смещения
-    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), targetRotation));
+    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), cameraRotation));
     camera.position.copy(newCameraPosition);
 
     // Направляем камеру на персонажа
@@ -105,6 +120,7 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
+  const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -158,6 +174,7 @@ const App = () => {
     }
 
     movementDirectionRef.current = { x, y };
+    setIsMoving(true); // Устанавливаем флаг движения в true
 
     const movementSpeed = 0.2;
     const forwardMovement = new Vector3(0, 0, -y * movementSpeed);
@@ -191,6 +208,8 @@ const App = () => {
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
+    setIsMoving(false); // Устанавливаем флаг движения в false
+
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
@@ -263,7 +282,7 @@ const App = () => {
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
-              <FollowCamera targetPosition={playerPosition} targetRotation={playerRotation} />
+              <FollowCamera targetPosition={playerPosition} targetRotation={playerRotation} isMoving={isMoving} />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
