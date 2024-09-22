@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0);
+      groupRef.current.rotation.set(0, rotation, 0); // Направление движения по оси Y
     }
   });
 
@@ -87,7 +87,6 @@ const App = () => {
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [isPlayerMoving, setIsPlayerMoving] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
 
@@ -153,11 +152,9 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
-    const movementDirection = forwardMovement.clone().add(rightMovement);
 
-    const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
-    setPlayerRotation(directionAngle); 
-    setIsPlayerMoving(true);
+    const directionAngle = Math.atan2(x, y); // Вращение персонажа по направлению джойстика
+    setPlayerRotation(directionAngle); // Задание вращения в зависимости от джойстика
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
@@ -176,7 +173,6 @@ const App = () => {
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setIsPlayerMoving(false);
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
