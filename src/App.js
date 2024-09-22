@@ -60,8 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      // Устанавливаем правильный угол поворота персонажа
-      groupRef.current.rotation.set(0, rotation, 0);
+      groupRef.current.rotation.set(0, rotation, 0); // Обновление угла поворота
     }
   });
 
@@ -83,14 +82,14 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0); // Угол вращения персонажа
+  const [playerRotation, setPlayerRotation] = useState(0); // Управляемый угол поворота персонажа
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [rotationAngle, setRotationAngle] = useState(0); // Контроллер угла поворота
+  const [rotationAngle, setRotationAngle] = useState(0); // Контроллер угла поворота через слайдер
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -155,10 +154,6 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе направления джойстика
-    const directionAngle = Math.atan2(x, y); // важно поменять на Math.atan2(x, y)
-    setPlayerRotation(rotationAngle); // Используем контроллер угла вместо автоматики
-
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
@@ -169,7 +164,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: rotationAngle, // Используем вручную установленный угол
+      rotation: playerRotation, // Используем контроллер угла поворота
       animation: 'Running',
     });
   };
@@ -190,10 +185,10 @@ const App = () => {
     });
   };
 
-  // Контроллер угла
+  // Контроллер угла поворота через слайдер
   const handleRotationChange = (event) => {
     const newRotation = parseFloat(event.target.value);
-    setRotationAngle(newRotation);
+    setPlayerRotation(newRotation); // Устанавливаем угол поворота через слайдер
   };
 
   useEffect(() => {
@@ -204,7 +199,7 @@ const App = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [playerPosition, rotationAngle]);
+  }, [playerPosition]);
 
   return (
     <div
@@ -278,15 +273,15 @@ const App = () => {
             Игроков онлайн: {Object.keys(players).length}
           </div>
 
-          {/* Добавляем слайдер для контроля угла поворота */}
+          {/* Ползунок для управления углом поворота */}
           <div style={{ position: 'absolute', top: 150, left: 20 }}>
-            <label style={{ color: 'white', fontSize: '18px' }}>Угол поворота: {rotationAngle.toFixed(2)} радиан</label>
+            <label style={{ color: 'white', fontSize: '18px' }}>Угол поворота: {playerRotation.toFixed(2)} радиан</label>
             <input
               type="range"
               min={-Math.PI}
               max={Math.PI}
               step={0.01}
-              value={rotationAngle}
+              value={playerRotation}
               onChange={handleRotationChange}
               style={{ width: '300px' }}
             />
