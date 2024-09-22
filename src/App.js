@@ -129,6 +129,7 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
   const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
+  const [cameraRotation, setCameraRotation] = useState(0); // Поворот камеры
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -181,30 +182,33 @@ const App = () => {
       return;
     }
 
-    movementDirectionRef.current = { x, y }; // Оставляем оси как есть
-
-    setIsMoving(true); // Устанавливаем флаг движения в true
-
+    // Переход на фиксированную скорость
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертируем движение по оси X
+    const forwardMovement = new Vector3(0, 0, movementSpeed); // Постоянная скорость вперед
+    const rightMovement = new Vector3(movementSpeed, 0, 0); // Постоянная скорость в стороны
+
+    const directionVector = new Vector3(x, 0, y).normalize(); // Нормализуем вектор направления
+    directionVector.applyAxisAngle(new Vector3(0, 1, 0), playerRotation); // Применяем поворот персонажа
+
     const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x + rightMovement.x,
+      playerPosition[0] + directionVector.x * movementSpeed,
       playerPosition[1],
-      playerPosition[2] + forwardMovement.z + rightMovement.z
+      playerPosition[2] + directionVector.z * movementSpeed
     );
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе инвертированного направления движения по оси X
-    const directionAngle = Math.atan2(-x, y); // Инвертируем угол вращения
+    // Рассчитываем угол вращения на основе направления движения джойстика
+    const directionAngle = Math.atan2(x, y);
     setPlayerRotation(directionAngle); // Устанавливаем угол поворота
+
+    setIsMoving(true); // Устанавливаем флаг движения в true
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    const directionName = getDirectionName(-x, y); // Инвертируем ось X при отображении направления
+    const directionName = getDirectionName(x, y);
     setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
