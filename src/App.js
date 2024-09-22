@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Vector3, TextureLoader, AnimationMixer, AnimationClip, Euler } from 'three';
+import { Vector3, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      // Используем правильный угол поворота на основе направления
+      // Устанавливаем правильный угол поворота персонажа
       groupRef.current.rotation.set(0, rotation, 0);
     }
   });
@@ -83,7 +83,7 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0);
+  const [playerRotation, setPlayerRotation] = useState(0); // Угол вращения персонажа
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
@@ -154,8 +154,8 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе направления движения по осям x и y
-    const directionAngle = Math.atan2(x, y); 
+    // Рассчитываем угол вращения на основе направления джойстика
+    const directionAngle = Math.atan2(y, x); // угол в радианах
     setPlayerRotation(directionAngle); // Устанавливаем вращение персонажа в зависимости от джойстика
 
     if (currentAnimation !== 'Running') {
