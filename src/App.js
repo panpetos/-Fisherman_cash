@@ -70,7 +70,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
   const { camera } = useThree();
   const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
-  const [cameraRotation, setCameraRotation] = useState(targetRotation);
+  const [cameraRotation, setCameraRotation] = useState(targetRotation); // Используем состояние для плавного изменения поворота
   const [isFollowing, setIsFollowing] = useState(true); // Состояние для задержки поворота
 
   useEffect(() => {
@@ -94,7 +94,8 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
 
     // Плавное изменение угла камеры при остановке
     if (!isFollowing) {
-      cameraRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
+      const newRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
+      setCameraRotation(newRotation); // Обновляем поворот камеры через состояние
     }
 
     camera.position.copy(newCameraPosition);
