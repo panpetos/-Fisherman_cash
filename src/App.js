@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { Vector3, TextureLoader, AnimationMixer, AnimationClip } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
@@ -60,36 +60,11 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Убираем наклоны, только вращение по оси Y
+      groupRef.current.rotation.set(0, rotation, 0);
     }
   });
 
   return <group ref={groupRef} />;
-};
-
-// Camera follows the player
-const FollowCamera = ({ playerPosition, cameraRotation, cameraTargetRotation, isPlayerMoving }) => {
-  const { camera } = useThree();
-  const distance = 10; // Distance from camera to player
-  const height = 5; // Camera height relative to player
-  const smoothFactor = 0.1; // For smooth camera movement
-
-  useFrame(() => {
-    if (camera) {
-      const targetRotation = isPlayerMoving ? cameraTargetRotation : cameraRotation;
-      const currentRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
-      const offset = new Vector3(
-        -Math.sin(currentRotation) * distance,
-        height,
-        Math.cos(currentRotation) * distance
-      );
-      camera.position.copy(new Vector3(...playerPosition).add(offset));
-      camera.lookAt(new Vector3(...playerPosition));
-      camera.rotation.order = 'YXZ';
-    }
-  });
-
-  return null;
 };
 
 const TexturedFloor = () => {
@@ -108,8 +83,6 @@ const TexturedFloor = () => {
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
-  const [cameraRotation, setCameraRotation] = useState(0);
-  const [cameraTargetRotation, setCameraTargetRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
@@ -171,10 +144,8 @@ const App = () => {
     movementDirectionRef.current = { x, y };
 
     const movementSpeed = 0.2;
-    const cameraDirection = new Vector3(-Math.sin(cameraRotation), 0, Math.cos(cameraRotation)).normalize();
-    const rightVector = new Vector3(Math.cos(cameraRotation), 0, Math.sin(cameraRotation)).normalize();
-    const forwardMovement = cameraDirection.clone().multiplyScalar(-y * movementSpeed);
-    const rightMovement = rightVector.clone().multiplyScalar(x * movementSpeed);
+    const forwardMovement = new Vector3(0, 0, -y * movementSpeed);
+    const rightMovement = new Vector3(x * movementSpeed, 0, 0);
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -186,7 +157,6 @@ const App = () => {
 
     const directionAngle = Math.atan2(movementDirection.x, movementDirection.z);
     setPlayerRotation(directionAngle); 
-    setCameraTargetRotation(directionAngle); 
     setIsPlayerMoving(true);
 
     if (currentAnimation !== 'Running') {
@@ -229,21 +199,7 @@ const App = () => {
     }, 50);
 
     return () => clearInterval(interval);
-  }, [cameraRotation, playerPosition]);
-
-  useEffect(() => {
-    const updateCameraRotation = () => {
-      setCameraRotation((prev) => {
-        const deltaRotation = cameraTargetRotation - prev;
-        const normalizedDelta = ((deltaRotation + Math.PI) % (2 * Math.PI)) - Math.PI;
-        const newRotation = prev + normalizedDelta * 0.1;
-        return newRotation % (2 * Math.PI);
-      });
-    };
-
-    const interval = setInterval(updateCameraRotation, 16);
-    return () => clearInterval(interval);
-  }, [cameraTargetRotation]);
+  }, [playerPosition]);
 
   return (
     <div
@@ -293,12 +249,6 @@ const App = () => {
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
-              <FollowCamera
-                playerPosition={playerPosition}
-                cameraRotation={cameraRotation}
-                cameraTargetRotation={cameraTargetRotation}
-                isPlayerMoving={isPlayerMoving}
-              />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
