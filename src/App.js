@@ -131,6 +131,18 @@ const App = () => {
   const [joystickDirection, setJoystickDirection] = useState('');
   const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
 
+  // Функция для преобразования направления джойстика относительно направления персонажа
+  const transformJoystickDirection = (x, y) => {
+    const sin = Math.sin(playerRotation);
+    const cos = Math.cos(playerRotation);
+
+    // Поворачиваем направление джойстика относительно текущего направления персонажа
+    const transformedX = cos * x - sin * y;
+    const transformedY = sin * x + cos * y;
+
+    return { x: transformedX, y: transformedY };
+  };
+
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
 
@@ -182,13 +194,16 @@ const App = () => {
       return;
     }
 
-    movementDirectionRef.current = { x: -x, y: -y }; // Инвертируем оси для управления
+    // Преобразуем направление джойстика с учётом текущего направления персонажа
+    const { x: transformedX, y: transformedY } = transformJoystickDirection(x, y);
+
+    movementDirectionRef.current = { x: transformedX, y: transformedY };
 
     setIsMoving(true); // Устанавливаем флаг движения в true
 
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Инвертированное движение
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертированное движение
+    const forwardMovement = new Vector3(0, 0, transformedY * movementSpeed);
+    const rightMovement = new Vector3(transformedX * movementSpeed, 0, 0);
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -197,15 +212,15 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе инвертированного управления
-    const directionAngle = Math.atan2(-x, y);
+    // Рассчитываем угол вращения на основе направления джойстика
+    const directionAngle = Math.atan2(transformedX, transformedY);
     setPlayerRotation(directionAngle); // Устанавливаем угол поворота
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    const directionName = getDirectionName(-x, -y);
+    const directionName = getDirectionName(transformedX, transformedY);
     setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
