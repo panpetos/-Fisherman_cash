@@ -85,9 +85,12 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
     }
   }, [isMoving]);
 
-  useFrame(() => {
+  useFrame((state, delta) => {
     const smoothFactor = 0.05;
-    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), cameraRotation));
+
+    const newCameraPosition = new Vector3(...targetPosition).add(
+      cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), cameraRotation)
+    );
 
     if (!isFollowing) {
       const newRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
@@ -95,6 +98,7 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
     }
 
     camera.position.copy(newCameraPosition);
+
     camera.lookAt(new Vector3(...targetPosition));
   });
 
@@ -124,6 +128,24 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
   const [isMoving, setIsMoving] = useState(false);
+
+  const getDirectionName = (x, y) => {
+    if (x === 0 && y === 0) return 'center';
+
+    const angle = Math.atan2(y, x) * (180 / Math.PI);
+    let direction = '';
+
+    if (angle >= -22.5 && angle < 22.5) direction = 'right';
+    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
+    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
+    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
+    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
+    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
+    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
+    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
+
+    return direction;
+  };
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -159,11 +181,12 @@ const App = () => {
     }
 
     movementDirectionRef.current = { x, y };
+
     setIsMoving(true);
 
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed);
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0);
+    const forwardMovement = new Vector3(0, 0, y * movementSpeed).applyAxisAngle(new Vector3(0, 1, 0), playerRotation); // Изменение направления относительно поворота персонажа
+    const rightMovement = new Vector3(-x * movementSpeed, 0, 0).applyAxisAngle(new Vector3(0, 1, 0), playerRotation); // Тоже относительно поворота
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -171,17 +194,21 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
-    const directionAngle = Math.atan2(-x, y) + playerRotation;
-    setPlayerRotation(directionAngle);
+
+    const directionAngle = Math.atan2(-x, y);
+    setPlayerRotation(directionAngle + playerRotation); // Учитываем текущий поворот
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
+    const directionName = getDirectionName(-x, y);
+    setJoystickDirection(directionName);
+
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle,
+      rotation: directionAngle + playerRotation,
       animation: 'Running',
     });
   };
@@ -193,6 +220,8 @@ const App = () => {
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
+
+    setJoystickDirection('center');
 
     socket.emit('playerMove', {
       id: socket.id,
