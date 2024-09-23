@@ -287,7 +287,7 @@ const App = () => {
 
           
 
-          <div style={{ position: 'absolute', textAlign: center, right: '40%', color: 'white', fontSize: '18px' }}>
+          <div style={{ position: 'absolute', top: 10, right: '40%', color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
           </div>
         </>
