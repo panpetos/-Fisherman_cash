@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Обновление угла поворота
+      groupRef.current.rotation.set(0, rotation, 0);
     }
   });
 
@@ -69,37 +69,32 @@ const Fisherman = ({ position, rotation, animation }) => {
 
 const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
-  const [cameraRotation, setCameraRotation] = useState(targetRotation); // Используем состояние для плавного изменения поворота
-  const [isFollowing, setIsFollowing] = useState(true); // Состояние для задержки поворота
+  const cameraOffset = new Vector3(0, 5, -10);
+  const [cameraRotation, setCameraRotation] = useState(targetRotation);
+  const [isFollowing, setIsFollowing] = useState(true);
 
   useEffect(() => {
     if (!isMoving) {
       const timer = setTimeout(() => {
-        setIsFollowing(false); // Камера начинает плавно следовать за игроком
+        setIsFollowing(false);
       }, 1000);
 
       return () => clearTimeout(timer);
     } else {
-      setIsFollowing(true); // Во время движения камера следует в реальном времени
+      setIsFollowing(true);
     }
   }, [isMoving]);
 
   useFrame((state, delta) => {
-    const smoothFactor = 0.05; // Плавность поворота камеры
-
-    // Позиция камеры позади персонажа с учетом смещения
+    const smoothFactor = 0.05;
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), cameraRotation));
 
-    // Плавное изменение угла камеры при остановке
     if (!isFollowing) {
       const newRotation = cameraRotation + (targetRotation - cameraRotation) * smoothFactor;
-      setCameraRotation(newRotation); // Обновляем поворот камеры через состояние
+      setCameraRotation(newRotation);
     }
 
     camera.position.copy(newCameraPosition);
-
-    // Направляем камеру на персонажа
     camera.lookAt(new Vector3(...targetPosition));
   });
 
@@ -121,32 +116,15 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0); // Управляемый угол поворота персонажа
+  const [playerRotation, setPlayerRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
-
-  const getDirectionName = (x, y) => {
-    if (x === 0 && y === 0) return 'center';
-
-    const angle = Math.atan2(y, x) * (180 / Math.PI);
-    let direction = '';
-
-    if (angle >= -22.5 && angle < 22.5) direction = 'right';
-    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
-    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
-    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
-    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
-    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
-    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
-    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
-
-    return direction;
-  };
+  const [isMoving, setIsMoving] = useState(false);
+  const [cameraRotation, setCameraRotation] = useState(0); // Добавляем поворот камеры
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -168,7 +146,7 @@ const App = () => {
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
-      setPlayerRotation(player.rotation); // Инициализация угла поворота
+      setPlayerRotation(player.rotation);
       setIsLoading(false);
     });
 
@@ -181,54 +159,50 @@ const App = () => {
       return;
     }
 
-    movementDirectionRef.current = { x, y }; // Оставляем оси как есть
-
-    setIsMoving(true); // Устанавливаем флаг движения в true
+    movementDirectionRef.current = { x, y };
+    setIsMoving(true);
 
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертируем движение по оси X
+
+    // Преобразуем направление джойстика с учетом поворота камеры
+    const angleOffset = cameraRotation;
+    const joystickAngle = Math.atan2(y, x);
+    const directionAngle = joystickAngle + angleOffset;
+
+    const forwardMovement = new Vector3(Math.sin(directionAngle) * movementSpeed, 0, Math.cos(directionAngle) * movementSpeed);
     const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x + rightMovement.x,
+      playerPosition[0] + forwardMovement.x,
       playerPosition[1],
-      playerPosition[2] + forwardMovement.z + rightMovement.z
+      playerPosition[2] + forwardMovement.z
     );
 
     setPlayerPosition(newPosition.toArray());
-
-    // Рассчитываем угол вращения на основе инвертированного направления движения по оси X
-    const directionAngle = Math.atan2(-x, y); // Инвертируем угол вращения
-    setPlayerRotation(directionAngle); // Устанавливаем угол поворота
+    setPlayerRotation(directionAngle);
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    const directionName = getDirectionName(-x, y); // Инвертируем ось X при отображении направления
-    setJoystickDirection(directionName);
-
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle, // Отправляем угол поворота на сервер
+      rotation: directionAngle,
       animation: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setIsMoving(false); // Устанавливаем флаг движения в false
+    setIsMoving(false);
 
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
 
-    setJoystickDirection('center');
-
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
-      rotation: playerRotation, // Отправляем текущий угол поворота
+      rotation: playerRotation,
       animation: 'Idle',
     });
   };
