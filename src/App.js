@@ -67,13 +67,13 @@ const Fisherman = ({ position, rotation, animation }) => {
   return <group ref={groupRef} />;
 };
 
-const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
+const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
   const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
 
   useFrame(() => {
     // Позиция камеры позади персонажа с учетом смещения
-    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), targetRotation));
+    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
     camera.position.copy(newCameraPosition);
 
     // Направляем камеру на персонажа
@@ -268,7 +268,7 @@ const App = () => {
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
-              <FollowCamera targetPosition={playerPosition} targetRotation={playerRotation} isMoving={isMoving} />
+              <FollowCamera targetPosition={playerPosition} />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
