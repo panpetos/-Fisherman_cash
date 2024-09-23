@@ -285,11 +285,9 @@ const App = () => {
             <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
           </div>
 
-          <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
-            Направление джойстика: {joystickDirection}
-          </div>
+          
 
-          <div style={{ position: 'absolute', top: 10, right: '40%', color: 'white', fontSize: '18px' }}>
+          <div style={{ position: 'absolute', textAlign: center, right: '40%', color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
           </div>
         </>
