@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0);
+      groupRef.current.rotation.set(0, rotation, 0); 
     }
   });
 
@@ -85,8 +85,9 @@ const FollowCamera = ({ targetPosition, targetRotation, isMoving }) => {
     }
   }, [isMoving]);
 
-  useFrame((state, delta) => {
+  useFrame(() => {
     const smoothFactor = 0.05;
+
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset.clone().applyAxisAngle(new Vector3(0, 1, 0), cameraRotation));
 
     if (!isFollowing) {
@@ -124,7 +125,24 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
   const [isMoving, setIsMoving] = useState(false);
-  const [cameraRotation, setCameraRotation] = useState(0); // Добавляем поворот камеры
+
+  const getDirectionName = (x, y) => {
+    if (x === 0 && y === 0) return 'center';
+
+    const angle = Math.atan2(y, x) * (180 / Math.PI);
+    let direction = '';
+
+    if (angle >= -22.5 && angle < 22.5) direction = 'right';
+    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
+    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
+    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
+    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
+    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
+    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
+    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
+
+    return direction;
+  };
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -155,33 +173,32 @@ const App = () => {
 
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop(); 
+      handleStop();
       return;
     }
 
     movementDirectionRef.current = { x, y };
     setIsMoving(true);
 
-    const movementSpeed = 0.2;
-
-    // Преобразуем направление джойстика с учетом поворота камеры
-    const angleOffset = cameraRotation;
-    const joystickAngle = Math.atan2(y, x);
-    const directionAngle = joystickAngle + angleOffset;
-
-    const forwardMovement = new Vector3(Math.sin(directionAngle) * movementSpeed, 0, Math.cos(directionAngle) * movementSpeed);
+    const movementSpeed = 0.2; // Постоянная скорость
+    const movementVector = new Vector3(x, 0, y).normalize().multiplyScalar(movementSpeed);
     const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x,
+      playerPosition[0] + movementVector.x,
       playerPosition[1],
-      playerPosition[2] + forwardMovement.z
+      playerPosition[2] + movementVector.z
     );
 
     setPlayerPosition(newPosition.toArray());
+
+    const directionAngle = Math.atan2(-x, y);
     setPlayerRotation(directionAngle);
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
+
+    const directionName = getDirectionName(-x, y);
+    setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
       id: socket.id,
@@ -198,6 +215,8 @@ const App = () => {
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
+
+    setJoystickDirection('center');
 
     socket.emit('playerMove', {
       id: socket.id,
