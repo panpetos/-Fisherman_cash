@@ -289,7 +289,7 @@ const App = () => {
             Направление джойстика: {joystickDirection}
           </div>
 
-          <div style={{ position: 'absolute', top: '40%', right: 30, color: 'white', fontSize: '18px' }}>
+          <div style={{ position: 'absolute', top: 10, right: '40%', color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
           </div>
         </>
