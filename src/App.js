@@ -281,11 +281,15 @@ const App = () => {
             </Suspense>
           </Canvas>
 
-          <div style={{ position: 'absolute', right: 40%, bottom: 40 }}>
-            <Joystick size={100} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+          <div style={{ position: 'absolute', right: '40%', bottom: 40 }}>
+            <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
           </div>
-         
-          <div style={{ position: 'absolute', top: 40%, right: 30, color: 'white', fontSize: '18px' }}>
+
+          <div style={{ position: 'absolute', top: 50, right: 20, color: 'white', fontSize: '18px' }}>
+            Направление джойстика: {joystickDirection}
+          </div>
+
+          <div style={{ position: 'absolute', top: '40%', right: 30, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
           </div>
         </>
