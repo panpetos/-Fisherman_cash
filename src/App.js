@@ -281,7 +281,7 @@ const App = () => {
             </Suspense>
           </Canvas>
 
-          <div style={{ position: 'absolute', right: '40%', bottom: 40 }}>
+          <div style={{ position: 'absolute', textAlign:'center', bottom: 40 }}>
             <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
           </div>
 
