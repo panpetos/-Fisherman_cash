@@ -288,7 +288,7 @@ const App = () => {
   
   
    }}>
-            <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
+            <Joystick size={80} baseColor="#00ffb11c" stickColor="#fffcfc17" move={handleMove} stop={handleStop} />
           </div>
 
           
