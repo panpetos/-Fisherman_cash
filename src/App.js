@@ -282,13 +282,12 @@ const App = () => {
           </Canvas>
 
           <div style={{ position: 'absolute', 
-  top: '50%', 
+  top: '75%', 
   left: '50%', 
   transform: 'translate(-50%, -50%)', 
-  width: '100px',
-  height: '100px',
-  backgroundColor: 'red' ,
-  bottom: 40 }}>
+  
+  
+   }}>
             <Joystick size={80} baseColor="gray" stickColor="black" move={handleMove} stop={handleStop} />
           </div>
 
