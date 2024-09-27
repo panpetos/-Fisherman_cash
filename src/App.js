@@ -83,7 +83,8 @@ const FollowCamera = ({ targetPosition }) => {
 const TexturedFloor = () => {
   const texture = useLoader(
     TextureLoader,
-'https://files.oaiusercontent.com/file-bGPKkRt01UooVCg8vudWT3cg?se=2024-09-27T20%3A39%3A27Z&sp=r&sv=2024-08-04&sr=b&rscc=max-age%3D604800%2C%20immutable%2C%20private&rscd=attachment%3B%20filename%3D238178ae-f801-4e81-be1c-f7a507e507ce.webp&sig=uiSe9nHxnZta5NETezcO6BVcxVChLj64nL38tklM7GQ%3D'    //'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
+    'https://i.1.creatium.io/disk2/08/13/41/68af00d6b6bb52d116e5ad558c1888f510/238178ae_f801_4e81_be1c_f7a507e507ce.webp'
+    //'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
   );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
