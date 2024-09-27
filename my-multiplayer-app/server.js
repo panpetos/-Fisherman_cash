@@ -12,7 +12,7 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://brandingsite.store'],
+    origin: ['https://brandingsite.store','https://panpetos.github.io/Fisherman_cash/'],
     methods: ['GET', 'POST'],
   },
 });

@@ -42,7 +42,9 @@ EOF
 npm run build
 
 # Шаг 4: Деплой на Netlify
-netlify deploy --prod --dir=build
+#netlify deploy --prod --dir=build
+npm run deploy
+
 
 # Сообщение об успешном завершении
 echo "Все этапы деплоя завершены!"
