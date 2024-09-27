@@ -12,54 +12,49 @@ const app = express();
 const server = https.createServer(credentials, app);
 const io = socketIo(server, {
   cors: {
-    origin: ['https://brandingsite.store','https://panpetos.github.io/Fisherman_cash/'],
+    origin: ['https://brandingsite.store', 'https://eleonhrcenter.com'],
     methods: ['GET', 'POST'],
   },
 });
 
-const players = {};
+const players = {}; // Хранение данных о всех игроках
 
 io.on('connection', (socket) => {
   console.log('Новый игрок подключился:', socket.id);
 
+  // Инициализируем нового игрока с дефолтной позицией, анимацией и углом поворота
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
-    rotation: 0,
-    animation: 'Idle',
+    rotation: 0, // Новый игрок начинает с углом поворота 0
+    animation: 'Idle', // Стандартная анимация
   };
 
+  // Отправляем состояние новому игроку
   socket.emit('initPlayer', players[socket.id], players);
+
+  // Обновляем состояние всех игроков для новоподключенного
   socket.broadcast.emit('updatePlayers', players);
 
+  // Обновляем данные игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id].position = data.position;
-      players[socket.id].rotation = data.rotation;
-      players[socket.id].animation = data.animation;
-      io.emit('updatePlayers', players);
+      players[socket.id].rotation = data.rotation; // Обновляем угол поворота
+      players[socket.id].animation = data.animation; // Обновляем анимацию
+      io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
     }
   });
 
-  socket.on('sendOffer', ({ to, offer }) => {
-    io.to(to).emit('receiveOffer', { from: socket.id, offer });
-  });
-
-  socket.on('sendAnswer', ({ to, answer }) => {
-    io.to(to).emit('receiveAnswer', { from: socket.id, answer });
-  });
-
-  socket.on('sendCandidate', ({ to, candidate }) => {
-    io.to(to).emit('receiveCandidate', { from: socket.id, candidate });
-  });
-
+  // Удаление игрока при отключении
   socket.on('disconnect', () => {
     console.log('Игрок отключился:', socket.id);
-    delete players[socket.id];
-    io.emit('updatePlayers', players);
+    delete players[socket.id]; // Удаляем игрока из списка
+    io.emit('updatePlayers', players); // Обновляем состояние для всех клиентов
   });
 });
 
+// Запуск HTTPS сервера на порту 5000
 server.listen(5000, () => {
   console.log('Сервер запущен на https://brandingsite.store:5000');
 });

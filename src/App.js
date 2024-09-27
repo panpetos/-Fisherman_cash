@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0);
+      groupRef.current.rotation.set(0, rotation, 0); // Обновление угла поворота
     }
   });
 
@@ -69,11 +69,14 @@ const Fisherman = ({ position, rotation, animation }) => {
 
 const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 5, -10);
+  const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
 
   useFrame(() => {
+    // Позиция камеры позади персонажа с учетом смещения
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
     camera.position.copy(newCameraPosition);
+
+    // Направляем камеру на персонажа
     camera.lookAt(new Vector3(...targetPosition));
   });
 
@@ -95,18 +98,14 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0);
+  const [playerRotation, setPlayerRotation] = useState(0); // Управляемый угол поворота персонажа
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [isMoving, setIsMoving] = useState(false);
-
-  const [isMicrophoneActive, setIsMicrophoneActive] = useState(false);
-  const [localStream, setLocalStream] = useState(null);
-  const [peerConnections, setPeerConnections] = useState({});
+  const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
 
   const getDirectionName = (x, y) => {
     if (x === 0 && y === 0) return 'center';
@@ -146,7 +145,7 @@ const App = () => {
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
-      setPlayerRotation(player.rotation);
+      setPlayerRotation(player.rotation); // Инициализация угла поворота
       setIsLoading(false);
     });
 
@@ -155,16 +154,17 @@ const App = () => {
 
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop();
+      handleStop(); 
       return;
     }
 
-    movementDirectionRef.current = { x, y };
-    setIsMoving(true);
+    movementDirectionRef.current = { x, y }; // Оставляем оси как есть
+
+    setIsMoving(true); // Устанавливаем флаг движения в true
 
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed);
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0);
+    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад
+    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертируем движение по оси X
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -172,27 +172,29 @@ const App = () => {
     );
 
     setPlayerPosition(newPosition.toArray());
-    const directionAngle = Math.atan2(-x, y);
-    setPlayerRotation(directionAngle);
+
+    // Рассчитываем угол вращения на основе инвертированного направления движения по оси X
+    const directionAngle = Math.atan2(-x, y); // Инвертируем угол вращения
+    setPlayerRotation(directionAngle); // Устанавливаем угол поворота
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    const directionName = getDirectionName(-x, y);
+    const directionName = getDirectionName(-x, y); // Инвертируем ось X при отображении направления
     setJoystickDirection(directionName);
 
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle,
+      rotation: directionAngle, // Отправляем угол поворота на сервер
       animation: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setIsMoving(false);
+    setIsMoving(false); // Устанавливаем флаг движения в false
 
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
@@ -203,7 +205,7 @@ const App = () => {
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
-      rotation: playerRotation,
+      rotation: playerRotation, // Отправляем текущий угол поворота
       animation: 'Idle',
     });
   };
@@ -217,111 +219,6 @@ const App = () => {
 
     return () => clearInterval(interval);
   }, [playerPosition]);
-
-  const toggleMicrophone = async () => {
-    if (isMicrophoneActive) {
-      stopMicrophone();
-    } else {
-      startMicrophone();
-    }
-  };
-
-  const startMicrophone = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setLocalStream(stream);
-      setIsMicrophoneActive(true);
-
-      for (const [id, peerConnection] of Object.entries(peerConnections)) {
-        stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
-      }
-    } catch (error) {
-      console.error("Ошибка доступа к микрофону:", error);
-    }
-  };
-
-  const stopMicrophone = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
-      setLocalStream(null);
-    }
-    setIsMicrophoneActive(false);
-  };
-
-  useEffect(() => {
-    const handleNewPlayer = async (newPlayerId) => {
-      const peerConnection = new RTCPeerConnection();
-
-      peerConnection.ontrack = (event) => {
-        const remoteAudio = new Audio();
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.play();
-      };
-
-      if (localStream) {
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-      }
-
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("sendCandidate", { to: newPlayerId, candidate: event.candidate });
-        }
-      };
-
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-      socket.emit("sendOffer", { to: newPlayerId, offer });
-
-      setPeerConnections((prev) => ({ ...prev, [newPlayerId]: peerConnection }));
-    };
-
-    socket.on("newPlayerConnected", handleNewPlayer);
-
-    return () => {
-      socket.off("newPlayerConnected", handleNewPlayer);
-    };
-  }, [localStream]);
-
-  useEffect(() => {
-    socket.on("receiveOffer", async ({ from, offer }) => {
-      const peerConnection = new RTCPeerConnection();
-
-      peerConnection.ontrack = (event) => {
-        const remoteAudio = new Audio();
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.play();
-      };
-
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("sendCandidate", { to: from, candidate: event.candidate });
-        }
-      };
-
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      socket.emit("sendAnswer", { to: from, answer });
-
-      setPeerConnections((prev) => ({ ...prev, [from]: peerConnection }));
-    });
-
-    socket.on("receiveAnswer", async ({ from, answer }) => {
-      const peerConnection = peerConnections[from];
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-    });
-
-    socket.on("receiveCandidate", async ({ from, candidate }) => {
-      const peerConnection = peerConnections[from];
-      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    return () => {
-      socket.off("receiveOffer");
-      socket.off("receiveAnswer");
-      socket.off("receiveCandidate");
-    };
-  }, [peerConnections]);
 
   return (
     <div
@@ -384,26 +281,21 @@ const App = () => {
             </Suspense>
           </Canvas>
 
-          <div style={{ position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+          <div style={{ position: 'absolute', 
+  top: '85%', 
+  left: '50%', 
+  transform: 'translate(-50%, -50%)', 
+  
+  
+   }}>
             <Joystick size={80} baseColor="#00ffb11c" stickColor="#fffcfc17" move={handleMove} stop={handleStop} />
           </div>
 
-          <div style={{ position: 'absolute', top: '10%', right: '10%', color: 'white', fontSize: '18px' }}>
+          
+
+          <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
           </div>
-
-          <button
-            onClick={toggleMicrophone}
-            style={{
-              position: 'absolute',
-              top: '90%',
-              right: '10%',
-              padding: '10px',
-              backgroundColor: isMicrophoneActive ? 'red' : 'green',
-            }}
-          >
-            🎤
-          </button>
         </>
       )}
     </div>
