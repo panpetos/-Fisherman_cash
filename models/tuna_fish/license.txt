@@ -1,0 +1,11 @@
+Model Information:
+* title:	Tuna Fish
+* source:	https://sketchfab.com/3d-models/tuna-fish-c5fad940863f47f784d792ca95e16b42
+* author:	GoldenZtuff (https://sketchfab.com/dhjwdwd)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Tuna Fish" (https://sketchfab.com/3d-models/tuna-fish-c5fad940863f47f784d792ca95e16b42) by GoldenZtuff (https://sketchfab.com/dhjwdwd) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
