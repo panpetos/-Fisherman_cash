@@ -72,11 +72,8 @@ const FollowCamera = ({ targetPosition }) => {
   const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
 
   useFrame(() => {
-    // Позиция камеры позади персонажа с учетом смещения
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
     camera.position.copy(newCameraPosition);
-
-    // Направляем камеру на персонажа
     camera.lookAt(new Vector3(...targetPosition));
   });
 
@@ -98,37 +95,21 @@ const TexturedFloor = () => {
 
 const App = () => {
   const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
-  const [playerRotation, setPlayerRotation] = useState(0); // Управляемый угол поворота персонажа
+  const [playerRotation, setPlayerRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const [joystickDirection, setJoystickDirection] = useState('');
-  const [isMoving, setIsMoving] = useState(false); // Новое состояние для отслеживания движения
-
-  const getDirectionName = (x, y) => {
-    if (x === 0 && y === 0) return 'center';
-
-    const angle = Math.atan2(y, x) * (180 / Math.PI);
-    let direction = '';
-
-    if (angle >= -22.5 && angle < 22.5) direction = 'right';
-    else if (angle >= 22.5 && angle < 67.5) direction = 'up right';
-    else if (angle >= 67.5 && angle < 112.5) direction = 'up';
-    else if (angle >= 112.5 && angle < 157.5) direction = 'up left';
-    else if ((angle >= 157.5 && angle <= 180) || (angle >= -180 && angle < -157.5)) direction = 'left';
-    else if (angle >= -157.5 && angle < -112.5) direction = 'down left';
-    else if (angle >= -112.5 && angle < -67.5) direction = 'down';
-    else if (angle >= -67.5 && angle < -22.5) direction = 'down right';
-
-    return direction;
-  };
 
   const handleConnect = () => {
     setIsLoading(true);
     setIsConnected(true);
-    socket = io('https://brandingsite.store:5000');
+    socket = io('https://brandingsite.store:5000', {
+      transports: ['websocket'],
+      withCredentials: true,
+    });
 
     socket.on('connect', () => {
       console.log('Connected to server with id:', socket.id);
@@ -145,7 +126,7 @@ const App = () => {
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
       setPlayerPosition(player.position);
-      setPlayerRotation(player.rotation); // Инициализация угла поворота
+      setPlayerRotation(player.rotation);
       setIsLoading(false);
     });
 
@@ -154,17 +135,15 @@ const App = () => {
 
   const handleMove = ({ x, y }) => {
     if (x === 0 && y === 0) {
-      handleStop(); 
+      handleStop();
       return;
     }
 
-    movementDirectionRef.current = { x, y }; // Оставляем оси как есть
-
-    setIsMoving(true); // Устанавливаем флаг движения в true
+    movementDirectionRef.current = { x, y };
 
     const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed); // Движение вперед-назад
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0); // Инвертируем движение по оси X
+    const forwardMovement = new Vector3(0, 0, y * movementSpeed);
+    const rightMovement = new Vector3(-x * movementSpeed, 0, 0);
     const newPosition = new Vector3(
       playerPosition[0] + forwardMovement.x + rightMovement.x,
       playerPosition[1],
@@ -173,39 +152,32 @@ const App = () => {
 
     setPlayerPosition(newPosition.toArray());
 
-    // Рассчитываем угол вращения на основе инвертированного направления движения по оси X
-    const directionAngle = Math.atan2(-x, y); // Инвертируем угол вращения
-    setPlayerRotation(directionAngle); // Устанавливаем угол поворота
+    const directionAngle = Math.atan2(-x, y);
+    setPlayerRotation(directionAngle);
 
     if (currentAnimation !== 'Running') {
       setCurrentAnimation('Running');
     }
 
-    const directionName = getDirectionName(-x, y); // Инвертируем ось X при отображении направления
-    setJoystickDirection(directionName);
-
     socket.emit('playerMove', {
       id: socket.id,
       position: newPosition.toArray(),
-      rotation: directionAngle, // Отправляем угол поворота на сервер
+      rotation: directionAngle,
       animation: 'Running',
     });
   };
 
   const handleStop = () => {
     movementDirectionRef.current = { x: 0, y: 0 };
-    setIsMoving(false); // Устанавливаем флаг движения в false
 
     if (currentAnimation !== 'Idle') {
       setCurrentAnimation('Idle');
     }
 
-    setJoystickDirection('center');
-
     socket.emit('playerMove', {
       id: socket.id,
       position: playerPosition,
-      rotation: playerRotation, // Отправляем текущий угол поворота
+      rotation: playerRotation,
       animation: 'Idle',
     });
   };
@@ -221,45 +193,14 @@ const App = () => {
   }, [playerPosition]);
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        width: '100vw',
-        position: 'relative',
-        backgroundImage: 'url(/nebo.jpg)',
-        backgroundSize: 'cover',
-      }}
-    >
+    <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
       {!isConnected ? (
-        <div
-          style={{
-            height: '100vh',
-            width: '100vw',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundImage: 'url(/nebo.jpg)',
-            backgroundSize: 'cover',
-          }}
-        >
+        <div style={{ height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
           <h1>FunFishing</h1>
-          <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>
-            Войти в общий сервер
-          </button>
+          <button onClick={handleConnect} style={{ padding: '10px 20px', fontSize: '16px' }}>Войти в общий сервер</button>
         </div>
       ) : isLoading ? (
-        <div
-          style={{
-            height: '100vh',
-            width: '100vw',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundImage: 'url(/nebo.jpg)',
-            backgroundSize: 'cover',
-          }}
-        >
+        <div style={{ height: '100vh', width: '100vw', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <h1>Загрузка...</h1>
         </div>
       ) : (
@@ -281,17 +222,9 @@ const App = () => {
             </Suspense>
           </Canvas>
 
-          <div style={{ position: 'absolute', 
-  top: '85%', 
-  left: '50%', 
-  transform: 'translate(-50%, -50%)', 
-  
-  
-   }}>
+          <div style={{ position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)' }}>
             <Joystick size={80} baseColor="#00ffb11c" stickColor="#fffcfc17" move={handleMove} stop={handleStop} />
           </div>
-
-          
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
