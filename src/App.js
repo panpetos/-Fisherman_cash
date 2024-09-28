@@ -5,6 +5,10 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
 
+// WebRTC переменные
+let localStream;
+let peerConnection;
+
 let socket;
 
 const Fisherman = ({ position, rotation, animation }) => {
@@ -60,16 +64,16 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Обновление угла поворота
+      groupRef.current.rotation.set(0, rotation, 0);
     }
   });
 
   return <group ref={groupRef} />;
 };
 
-const FollowCamera = ({ targetPosition }) => {
+const FollowCamera = ({ targetPosition, cameraDistance }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
+  const cameraOffset = new Vector3(0, 5, -cameraDistance); // Используем переменную cameraDistance
 
   useFrame(() => {
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
@@ -83,9 +87,7 @@ const FollowCamera = ({ targetPosition }) => {
 const TexturedFloor = () => {
   const texture = useLoader(
     TextureLoader,
-'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png'
-    //'https://i.1.creatium.io/disk2/08/13/41/68af00d6b6bb52d116e5ad558c1888f510/238178ae_f801_4e81_be1c_f7a507e507ce.webp'
-    //'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
+    'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png'
   );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
@@ -103,7 +105,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
-  const [joystickDirection, setJoystickDirection] = useState('');
+  const [cameraDistance, setCameraDistance] = useState(10); // Стейт для управления приближением камеры
+  const [isMicrophoneOn, setIsMicrophoneOn] = useState(false); // Стейт для микрофона
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -184,6 +187,26 @@ const App = () => {
     });
   };
 
+  const toggleMicrophone = async () => {
+    if (!isMicrophoneOn) {
+      // Включение микрофона
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      peerConnection = new RTCPeerConnection();
+      peerConnection.addTrack(localStream.getTracks()[0]);
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('iceCandidate', event.candidate);
+        }
+      };
+      setIsMicrophoneOn(true);
+    } else {
+      // Отключение микрофона
+      localStream.getTracks().forEach((track) => track.stop());
+      peerConnection.close();
+      setIsMicrophoneOn(false);
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
@@ -211,7 +234,7 @@ const App = () => {
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
-              <FollowCamera targetPosition={playerPosition} />
+              <FollowCamera targetPosition={playerPosition} cameraDistance={cameraDistance} />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
@@ -227,6 +250,35 @@ const App = () => {
           <div style={{ position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)' }}>
             <Joystick size={80} baseColor="#00ffb11c" stickColor="#fffcfc17" move={handleMove} stop={handleStop} />
           </div>
+
+          <div style={{ position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)', color: 'white', fontSize: '18px' }}>
+            Камера: {cameraDistance.toFixed(1)}м
+          </div>
+
+          <input
+            type="range"
+            min="1"
+            max="20"
+            value={cameraDistance}
+            onChange={(e) => setCameraDistance(parseFloat(e.target.value))}
+            style={{ position: 'absolute', bottom: '15%', left: '50%', transform: 'translateX(-50%)', width: '80%' }}
+          />
+
+          <button
+            onClick={toggleMicrophone}
+            style={{
+              position: 'absolute',
+              bottom: '10%',
+              right: '10%',
+              backgroundColor: isMicrophoneOn ? 'red' : 'green',
+              padding: '10px',
+              borderRadius: '50%',
+              fontSize: '24px',
+              color: 'white'
+            }}
+          >
+            🎤
+          </button>
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}

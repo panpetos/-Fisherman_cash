@@ -31,39 +31,36 @@ const players = {}; // Хранение данных о всех игроках
 io.on('connection', (socket) => {
   console.log('Новый игрок подключился:', socket.id);
 
-  // Инициализируем нового игрока с дефолтной позицией, анимацией и углом поворота
   players[socket.id] = {
     id: socket.id,
     position: [0, 0, 0],
-    rotation: 0, // Новый игрок начинает с углом поворота 0
-    animation: 'Idle', // Стандартная анимация
+    rotation: 0,
+    animation: 'Idle',
   };
 
-  // Отправляем состояние новому игроку
   socket.emit('initPlayer', players[socket.id], players);
-
-  // Обновляем состояние всех игроков для новоподключенного
   socket.broadcast.emit('updatePlayers', players);
 
-  // Обновляем данные игрока
   socket.on('playerMove', (data) => {
     if (players[socket.id]) {
       players[socket.id].position = data.position;
-      players[socket.id].rotation = data.rotation; // Обновляем угол поворота
-      players[socket.id].animation = data.animation; // Обновляем анимацию
-      io.emit('updatePlayers', players); // Передаем обновленные данные всем игрокам
+      players[socket.id].rotation = data.rotation;
+      players[socket.id].animation = data.animation;
+      io.emit('updatePlayers', players);
     }
   });
 
-  // Удаление игрока при отключении
   socket.on('disconnect', () => {
-    console.log('Игрок отключился:', socket.id);
-    delete players[socket.id]; // Удаляем игрока из списка
-    io.emit('updatePlayers', players); // Обновляем состояние для всех клиентов
+    delete players[socket.id];
+    io.emit('updatePlayers', players);
+  });
+
+  // Обработка ICE кандидатов для WebRTC
+  socket.on('iceCandidate', (candidate) => {
+    socket.broadcast.emit('iceCandidate', candidate);
   });
 });
 
-// Запуск HTTPS сервера на порту 5000
 server.listen(5000, () => {
   console.log('Сервер запущен на https://brandingsite.store:5000');
 });
