@@ -59,7 +59,8 @@ const Fisherman = ({ position, rotation, animation }) => {
     }
 
     if (groupRef.current) {
-      groupRef.current.position.set(...position);
+      // Опускаем персонажа ближе к полу
+      groupRef.current.position.set(position[0], position[1] - 0.5, position[2]);
       groupRef.current.rotation.set(0, rotation, 0); 
     }
   });
@@ -69,7 +70,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
 const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 3, -5);
+  const cameraOffset = new Vector3(0, 3, -5); // Смещаем камеру ближе к персонажу
 
   useFrame(() => {
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
