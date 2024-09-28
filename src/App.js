@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
-import { Vector3, TextureLoader, AnimationMixer, AnimationClip } from 'three';
+import { Vector3, TextureLoader, AnimationMixer, AnimationClip, RepeatWrapping } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import io from 'socket.io-client';
 import { Joystick } from 'react-joystick-component';
@@ -60,7 +60,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(...position);
-      groupRef.current.rotation.set(0, rotation, 0); // Обновление угла поворота
+      groupRef.current.rotation.set(0, rotation, 0); 
     }
   });
 
@@ -69,7 +69,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
 const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 5, -10); // Смещение камеры относительно персонажа
+  const cameraOffset = new Vector3(0, 5, -10);
 
   useFrame(() => {
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
@@ -83,13 +83,30 @@ const FollowCamera = ({ targetPosition }) => {
 const TexturedFloor = () => {
   const texture = useLoader(
     TextureLoader,
-'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png'
-    //'https://i.1.creatium.io/disk2/08/13/41/68af00d6b6bb52d116e5ad558c1888f510/238178ae_f801_4e81_be1c_f7a507e507ce.webp'
-    //'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
+    'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png'
   );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
+      <meshBasicMaterial map={texture} />
+    </mesh>
+  );
+};
+
+// Добавление фона с повторяющейся текстурой
+const Background = () => {
+  const texture = useLoader(
+    TextureLoader,
+    'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
+  );
+  
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(10, 10);  // Настраиваем количество повторений
+
+  return (
+    <mesh position={[0, 0, -50]}>
+      <planeGeometry args={[200, 200]} />
       <meshBasicMaterial map={texture} />
     </mesh>
   );
@@ -221,6 +238,7 @@ const App = () => {
                 />
               ))}
               <TexturedFloor />
+              <Background /> {/* Добавление повторяющегося фона */}
             </Suspense>
           </Canvas>
 
