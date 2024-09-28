@@ -7,7 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 let socket;
 
-const Fisherman = ({ position, rotation, animation }) => {
+const Fisherman = ({ position, rotation, animation, yOffset }) => {
   const groupRef = useRef();
   const mixerRef = useRef();
   const animationsRef = useRef();
@@ -59,8 +59,8 @@ const Fisherman = ({ position, rotation, animation }) => {
     }
 
     if (groupRef.current) {
-      // Опускаем персонажа ближе к полу
-      groupRef.current.position.set(position[0], position[1] - 0.5, position[2]);
+      // Используем yOffset для изменения вертикального положения
+      groupRef.current.position.set(position[0], position[1] + yOffset, position[2]);
       groupRef.current.rotation.set(0, rotation, 0); 
     }
   });
@@ -98,7 +98,8 @@ const TexturedFloor = () => {
 const Walls = () => {
   const texture = useLoader(
     TextureLoader,
-    'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
+    'https://p0.pikist.com/photos/366/401/fir-trees-fog-mist-forest-trees-nature-outdoors-cold-autumn.jpg'
+    //'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
   );
   
   texture.wrapS = RepeatWrapping;
@@ -142,6 +143,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
+  const [yOffset, setYOffset] = useState(0); // Управление вертикальным смещением персонажа
   const wallBoundary = 50;  // Границы карты
 
   const handleConnect = () => {
@@ -265,6 +267,7 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
+                  yOffset={yOffset} // Передаем смещение по оси Y
                 />
               ))}
               <TexturedFloor />
@@ -274,6 +277,20 @@ const App = () => {
 
           <div style={{ position: 'absolute', top: '85%', left: '50%', transform: 'translate(-50%, -50%)' }}>
             <Joystick size={80} baseColor="#00ffb11c" stickColor="#fffcfc17" move={handleMove} stop={handleStop} />
+          </div>
+
+          <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', color: 'white' }}>
+            {/* Контроллер для изменения смещения по оси Y */}
+            <label>Смещение по Y: {yOffset.toFixed(2)}</label>
+            <input 
+              type="range" 
+              min="-2" 
+              max="2" 
+              step="0.01" 
+              value={yOffset} 
+              onChange={(e) => setYOffset(parseFloat(e.target.value))} 
+              style={{ width: '300px' }}
+            />
           </div>
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
