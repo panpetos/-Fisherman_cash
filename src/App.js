@@ -255,7 +255,9 @@ const App = () => {
         </div>
       ) : (
         <>
-          <Canvas>
+          <Canvas
+            style={{ background: '#DEDEDE' }}  // Устанавливаем цвет фона
+          >
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
