@@ -7,7 +7,7 @@ import { Joystick } from 'react-joystick-component';
 
 // WebRTC переменные
 let localStream;
-let peerConnection;
+let peerConnections = {}; // Массив всех peer соединений для каждого игрока
 
 let socket;
 
@@ -191,21 +191,60 @@ const App = () => {
     if (!isMicrophoneOn) {
       // Включение микрофона
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      peerConnection = new RTCPeerConnection();
-      peerConnection.addTrack(localStream.getTracks()[0]);
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('iceCandidate', event.candidate);
-        }
-      };
       setIsMicrophoneOn(true);
+      for (let playerId in players) {
+        createPeerConnection(playerId);
+      }
     } else {
       // Отключение микрофона
       localStream.getTracks().forEach((track) => track.stop());
-      peerConnection.close();
+      for (let peerId in peerConnections) {
+        peerConnections[peerId].close();
+      }
       setIsMicrophoneOn(false);
     }
   };
+
+  const createPeerConnection = (playerId) => {
+    const peerConnection = new RTCPeerConnection();
+    peerConnections[playerId] = peerConnection;
+
+    peerConnection.addTrack(localStream.getTracks()[0], localStream);
+
+    peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('iceCandidate', { to: playerId, candidate: event.candidate });
+      }
+    };
+
+    peerConnection.ontrack = (event) => {
+      const audioElement = new Audio();
+      audioElement.srcObject = event.streams[0];
+      audioElement.play();
+    };
+
+    peerConnection.onnegotiationneeded = async () => {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit('offer', { to: playerId, offer: peerConnection.localDescription });
+    };
+  };
+
+  socket.on('offer', async ({ from, offer }) => {
+    const peerConnection = createPeerConnection(from);
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+    socket.emit('answer', { to: from, answer });
+  });
+
+  socket.on('answer', async ({ from, answer }) => {
+    await peerConnections[from].setRemoteDescription(new RTCSessionDescription(answer));
+  });
+
+  socket.on('iceCandidate', async ({ from, candidate }) => {
+    await peerConnections[from].addIceCandidate(new RTCIceCandidate(candidate));
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
