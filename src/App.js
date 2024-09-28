@@ -97,7 +97,8 @@ const TexturedFloor = () => {
 const Walls = () => {
   const texture = useLoader(
     TextureLoader,
-    'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
+    'https://cdn.openart.ai/stable_diffusion/f4f63e91dddc47007593f532133459e054fc9b20_2000x2000.webp'
+    //'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
   );
   
   texture.wrapS = RepeatWrapping;
