@@ -83,7 +83,7 @@ const FollowCamera = ({ targetPosition }) => {
 const TexturedFloor = () => {
   const texture = useLoader(
     TextureLoader,
-'https://i.1.creatium.io/disk2/1f/ed/fe/1db037fee5948cfb0092a8570bb94eb723/image_9.png'
+'https://i.1.creatium.io/disk2/e4/c9/a6/b2207a1fb28e2e383eae46a22a6efae6c2/frame_1.png'
     //'https://i.1.creatium.io/disk2/08/13/41/68af00d6b6bb52d116e5ad558c1888f510/238178ae_f801_4e81_be1c_f7a507e507ce.webp'
     //'https://cdn.wikimg.net/en/strategywiki/images/thumb/c/c4/TABT-Core-Very_Short-Map7.jpg/450px-TABT-Core-Very_Short-Map7.jpg'
   );
