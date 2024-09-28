@@ -69,7 +69,7 @@ const Fisherman = ({ position, rotation, animation }) => {
 
 const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 5, -5);
+  const cameraOffset = new Vector3(0, 5, -7);
 
   useFrame(() => {
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
