@@ -59,7 +59,6 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
     }
 
     if (groupRef.current) {
-      // Используем yOffset для изменения вертикального положения
       groupRef.current.position.set(position[0], position[1] + yOffset, position[2]);
       groupRef.current.rotation.set(0, rotation, 0); 
     }
@@ -70,7 +69,7 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
 
 const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 1.5, -5); // Смещаем камеру ближе к персонажу
+  const cameraOffset = new Vector3(0, 1.5, -5);
 
   useFrame(() => {
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
@@ -81,11 +80,9 @@ const FollowCamera = ({ targetPosition }) => {
   return null;
 };
 
-const TexturedFloor = () => {
-  const texture = useLoader(
-    TextureLoader,
-    'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png'
-  );
+// Component for the floor with switchable textures
+const TexturedFloor = ({ currentTexture }) => {
+  const texture = useLoader(TextureLoader, currentTexture);
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -94,7 +91,7 @@ const TexturedFloor = () => {
   );
 };
 
-// Стены с повторяющейся текстурой
+// Wall component remains the same
 const Walls = () => {
   const texture = useLoader(
     TextureLoader,
@@ -103,29 +100,25 @@ const Walls = () => {
   
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
-  texture.repeat.set(2.5, 1);  // Настройка повторения текстуры
+  texture.repeat.set(2.5, 1);
 
   const wallHeight = 25;
-  const wallDistance = 50;  // Позиция стен от центра
+  const wallDistance = 50;
 
   return (
     <>
-      {/* Стена спереди */}
       <mesh position={[0, wallHeight / 2 - 1, -wallDistance]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
-      {/* Стена сзади */}
       <mesh position={[0, wallHeight / 2 - 1, wallDistance]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
-      {/* Левая стена */}
       <mesh position={[-wallDistance, wallHeight / 2 - 1, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
-      {/* Правая стена */}
       <mesh position={[wallDistance, wallHeight / 2 - 1, 0]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
@@ -142,8 +135,22 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
-  const yOffset = -0.96;  // Фиксированное смещение по оси Y
-  const wallBoundary = 50;  // Границы карты
+  const yOffset = -0.96;
+  const wallBoundary = 50;
+
+  const textures = [
+    'https://i.1.creatium.io/disk2/63/ee/29/26332803a332611fe5b65a7b3895f7c136/1.png',
+    'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png',
+    'https://i.1.creatium.io/disk2/4f/83/02/17bdf21eeac7467da789b94debcb2db49c/3.png',
+    'https://i.1.creatium.io/disk2/1d/76/a6/0471ada10539af1ba1209e861a4ae9d273/4.png',
+    'https://i.1.creatium.io/disk2/b0/11/48/ed865438722741720ee7dced4b1cab52c7/5.png',
+  ];
+
+  const [currentTextureIndex, setCurrentTextureIndex] = useState(0);
+
+  const switchTexture = () => {
+    setCurrentTextureIndex((prevIndex) => (prevIndex + 1) % textures.length);
+  };
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -192,12 +199,11 @@ const App = () => {
       playerPosition[2] + forwardMovement.z + rightMovement.z
     );
 
-    // Ограничение передвижения по границам карты
     if (
       newPosition.x < -wallBoundary || newPosition.x > wallBoundary ||
       newPosition.z < -wallBoundary || newPosition.z > wallBoundary
     ) {
-      return;  // Не даем персонажу двигаться за пределы карты
+      return;
     }
 
     setPlayerPosition(newPosition.toArray());
@@ -255,9 +261,7 @@ const App = () => {
         </div>
       ) : (
         <>
-          <Canvas
-            style={{ background: '#DEDEDE' }}  // Устанавливаем цвет фона
-          >
+          <Canvas style={{ background: '#DEDEDE' }}>
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
@@ -268,11 +272,11 @@ const App = () => {
                   position={players[id].position}
                   rotation={players[id].rotation || 0}
                   animation={players[id].animation || 'Idle'}
-                  yOffset={yOffset} // Передаем фиксированное смещение по оси Y
+                  yOffset={yOffset}
                 />
               ))}
-              <TexturedFloor />
-              <Walls /> {/* Добавление стен */}
+              <TexturedFloor currentTexture={textures[currentTextureIndex]} />
+              <Walls />
             </Suspense>
           </Canvas>
 
@@ -282,6 +286,12 @@ const App = () => {
 
           <div style={{ position: 'absolute', top: 10, right: 20, color: 'white', fontSize: '18px' }}>
             Игроков онлайн: {Object.keys(players).length}
+          </div>
+
+          <div style={{ position: 'absolute', bottom: 50, right: 50 }}>
+            <button onClick={switchTexture} style={{ padding: '10px 20px', fontSize: '16px' }}>
+              Переключатель локации
+            </button>
           </div>
         </>
       )}
