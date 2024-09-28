@@ -70,7 +70,7 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
 
 const FollowCamera = ({ targetPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 2, -5); // Смещаем камеру ближе к персонажу
+  const cameraOffset = new Vector3(0, 1.5, -5); // Смещаем камеру ближе к персонажу
 
   useFrame(() => {
     const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
