@@ -102,7 +102,7 @@ const Walls = () => {
   
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
-  texture.repeat.set(10, 1);  // Настройка повторения текстуры
+  texture.repeat.set(2.5, 1);  // Настройка повторения текстуры
 
   const wallHeight = 10;
   const wallDistance = 50;  // Позиция стен от центра
