@@ -110,22 +110,22 @@ const Walls = () => {
   return (
     <>
       {/* Стена спереди */}
-      <mesh position={[0, wallHeight / 2, -wallDistance]}>
+      <mesh position={[0, wallHeight / 2 - 1, -wallDistance]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
       {/* Стена сзади */}
-      <mesh position={[0, wallHeight / 2, wallDistance]} rotation={[0, Math.PI, 0]}>
+      <mesh position={[0, wallHeight / 2 - 1, wallDistance]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
       {/* Левая стена */}
-      <mesh position={[-wallDistance, wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+      <mesh position={[-wallDistance, wallHeight / 2 - 1, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
       {/* Правая стена */}
-      <mesh position={[wallDistance, wallHeight / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
+      <mesh position={[wallDistance, wallHeight / 2 - 1, 0]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[100, wallHeight]} />
         <meshBasicMaterial map={texture} side={2} />
       </mesh>
