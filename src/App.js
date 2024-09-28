@@ -93,8 +93,8 @@ const TexturedFloor = () => {
   );
 };
 
-// Добавление фона с повторяющейся текстурой
-const Background = () => {
+// Стены с повторяющейся текстурой
+const Walls = () => {
   const texture = useLoader(
     TextureLoader,
     'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
@@ -102,13 +102,34 @@ const Background = () => {
   
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
-  texture.repeat.set(10, 10);  // Настраиваем количество повторений
+  texture.repeat.set(10, 1);  // Настройка повторения текстуры
+
+  const wallHeight = 10;
+  const wallDistance = 50;  // Позиция стен от центра
 
   return (
-    <mesh position={[0, 0, -50]}>
-      <planeGeometry args={[200, 200]} />
-      <meshBasicMaterial map={texture} />
-    </mesh>
+    <>
+      {/* Стена спереди */}
+      <mesh position={[0, wallHeight / 2, -wallDistance]}>
+        <planeGeometry args={[100, wallHeight]} />
+        <meshBasicMaterial map={texture} side={2} />
+      </mesh>
+      {/* Стена сзади */}
+      <mesh position={[0, wallHeight / 2, wallDistance]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[100, wallHeight]} />
+        <meshBasicMaterial map={texture} side={2} />
+      </mesh>
+      {/* Левая стена */}
+      <mesh position={[-wallDistance, wallHeight / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <planeGeometry args={[100, wallHeight]} />
+        <meshBasicMaterial map={texture} side={2} />
+      </mesh>
+      {/* Правая стена */}
+      <mesh position={[wallDistance, wallHeight / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
+        <planeGeometry args={[100, wallHeight]} />
+        <meshBasicMaterial map={texture} side={2} />
+      </mesh>
+    </>
   );
 };
 
@@ -120,7 +141,7 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
-  const [joystickDirection, setJoystickDirection] = useState('');
+  const wallBoundary = 50;  // Границы карты
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -168,6 +189,14 @@ const App = () => {
       playerPosition[1],
       playerPosition[2] + forwardMovement.z + rightMovement.z
     );
+
+    // Ограничение передвижения по границам карты
+    if (
+      newPosition.x < -wallBoundary || newPosition.x > wallBoundary ||
+      newPosition.z < -wallBoundary || newPosition.z > wallBoundary
+    ) {
+      return;  // Не даем персонажу двигаться за пределы карты
+    }
 
     setPlayerPosition(newPosition.toArray());
 
@@ -238,7 +267,7 @@ const App = () => {
                 />
               ))}
               <TexturedFloor />
-              <Background /> {/* Добавление повторяющегося фона */}
+              <Walls /> {/* Добавление стен */}
             </Suspense>
           </Canvas>
 
