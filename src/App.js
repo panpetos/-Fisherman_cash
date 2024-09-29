@@ -150,21 +150,12 @@ const RedSphere = ({ position }) => {
   );
 };
 
-const Crosshair = ({ camera }) => {
-  const crosshairRef = useRef();
-
-  useFrame(() => {
-    if (crosshairRef.current) {
-      const cameraDirection = new Vector3();
-      camera.getWorldDirection(cameraDirection);
-      cameraDirection.multiplyScalar(3); // Расстояние перед камерой
-      const crosshairPosition = new Vector3().copy(camera.position).add(cameraDirection);
-      crosshairRef.current.position.copy(crosshairPosition);
-    }
-  });
+const Crosshair = ({ cameraPosition, cameraRotation }) => {
+  const offset = new Vector3(0, 0, -5).applyEuler(cameraRotation); // позиция на небольшом расстоянии впереди камеры
+  const crosshairPosition = cameraPosition.clone().add(offset);
 
   return (
-    <mesh ref={crosshairRef}>
+    <mesh position={crosshairPosition}>
       <sphereGeometry args={[0.2, 32, 32]} />
       <meshBasicMaterial color="red" />
     </mesh>
@@ -232,7 +223,6 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const yOffset = -0.96;
   const wallBoundary = 50;
-  const camera = useThree((state) => state.camera);
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -371,7 +361,9 @@ const App = () => {
               <TexturedFloor />
               <Walls />
               {adminMode && <RedSphere position={adminPosition} />}
-              {adminMode && <Crosshair camera={camera} />}
+              {adminMode && (
+                <Crosshair cameraPosition={new Vector3(...adminPosition)} cameraRotation={new Vector3(...adminRotation)} />
+              )}
             </Suspense>
           </Canvas>
 
