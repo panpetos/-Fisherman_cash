@@ -70,15 +70,11 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
 const AdminCamera = ({ adminMode, adminPosition, setAdminPosition, adminRotation, setAdminRotation }) => {
   const { camera } = useThree();
   const [isMousePressed, setIsMousePressed] = useState(false);
-  const targetOffset = new Vector3(0, 0, -5); // Красный шарик на небольшом расстоянии перед камерой
 
   useFrame(() => {
     if (adminMode) {
       camera.position.copy(new Vector3(...adminPosition));
       camera.rotation.set(0, adminRotation[1], 0); // Keep horizon level
-      const forward = new Vector3(0, 0, -1).applyEuler(camera.rotation).normalize().multiplyScalar(5);
-      const newTargetPosition = new Vector3(...adminPosition).add(forward);
-      setAdminPosition(newTargetPosition.toArray());
     }
   });
 
@@ -154,9 +150,21 @@ const RedSphere = ({ position }) => {
   );
 };
 
-const Crosshair = ({ position }) => {
+const Crosshair = ({ camera }) => {
+  const crosshairRef = useRef();
+
+  useFrame(() => {
+    if (crosshairRef.current) {
+      const cameraDirection = new Vector3();
+      camera.getWorldDirection(cameraDirection);
+      cameraDirection.multiplyScalar(3); // Расстояние перед камерой
+      const crosshairPosition = new Vector3().copy(camera.position).add(cameraDirection);
+      crosshairRef.current.position.copy(crosshairPosition);
+    }
+  });
+
   return (
-    <mesh position={position}>
+    <mesh ref={crosshairRef}>
       <sphereGeometry args={[0.2, 32, 32]} />
       <meshBasicMaterial color="red" />
     </mesh>
@@ -224,6 +232,7 @@ const App = () => {
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const yOffset = -0.96;
   const wallBoundary = 50;
+  const camera = useThree((state) => state.camera);
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -362,9 +371,7 @@ const App = () => {
               <TexturedFloor />
               <Walls />
               {adminMode && <RedSphere position={adminPosition} />}
-              {adminMode && (
-                <Crosshair position={[adminPosition[0], adminPosition[1], adminPosition[2] - 5]} />
-              )}
+              {adminMode && <Crosshair camera={camera} />}
             </Suspense>
           </Canvas>
 
