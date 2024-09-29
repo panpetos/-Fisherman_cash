@@ -60,29 +60,68 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
 
     if (groupRef.current) {
       groupRef.current.position.set(position[0], position[1] + yOffset, position[2]);
-      groupRef.current.rotation.set(0, rotation, 0); 
+      groupRef.current.rotation.set(0, rotation, 0);
     }
   });
 
   return <group ref={groupRef} />;
 };
 
-const FollowCamera = ({ targetPosition }) => {
+const AdminCamera = ({ adminMode, setAdminPosition }) => {
   const { camera } = useThree();
-  const cameraOffset = new Vector3(0, 1.5, -5);
+  const speed = 1;
 
   useFrame(() => {
-    const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
-    camera.position.copy(newCameraPosition);
-    camera.lookAt(new Vector3(...targetPosition));
+    if (adminMode) {
+      // Basic WASD controls
+      const moveForward = (event) => {
+        if (event.key === 'w') camera.position.z -= speed;
+        if (event.key === 's') camera.position.z += speed;
+        if (event.key === 'a') camera.position.x -= speed;
+        if (event.key === 'd') camera.position.x += speed;
+        if (event.key === 'ArrowUp') camera.position.y += speed;
+        if (event.key === 'ArrowDown') camera.position.y -= speed;
+        setAdminPosition([camera.position.x, camera.position.y, camera.position.z]);
+      };
+
+      window.addEventListener('keydown', moveForward);
+
+      return () => window.removeEventListener('keydown', moveForward);
+    }
   });
 
   return null;
 };
 
-// Component for the floor with switchable textures
-const TexturedFloor = ({ currentTexture }) => {
-  const texture = useLoader(TextureLoader, currentTexture);
+const FollowCamera = ({ targetPosition, adminMode }) => {
+  const { camera } = useThree();
+  const cameraOffset = new Vector3(0, 1.5, -5);
+
+  useFrame(() => {
+    if (!adminMode) {
+      const newCameraPosition = new Vector3(...targetPosition).add(cameraOffset);
+      camera.position.copy(newCameraPosition);
+      camera.lookAt(new Vector3(...targetPosition));
+    }
+  });
+
+  return null;
+};
+
+const RedSphere = ({ position }) => {
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[0.5, 32, 32]} />
+      <meshBasicMaterial color="red" />
+    </mesh>
+  );
+};
+
+const TexturedFloor = () => {
+  const texture = useLoader(
+    TextureLoader,
+    'https://i.1.creatium.io/disk2/63/ee/29/26332803a332611fe5b65a7b3895f7c136/1.png'
+  );
   return (
     <mesh receiveShadow rotation-x={-Math.PI / 2} position={[0, -1, 0]}>
       <planeGeometry args={[100, 100]} />
@@ -91,13 +130,12 @@ const TexturedFloor = ({ currentTexture }) => {
   );
 };
 
-// Wall component remains the same
 const Walls = () => {
   const texture = useLoader(
     TextureLoader,
     'https://static.vecteezy.com/system/resources/previews/021/564/214/non_2x/tree-silhouette-background-with-tall-and-small-trees-forest-silhouette-illustration-free-vector.jpg'
   );
-  
+
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
   texture.repeat.set(2.5, 1);
@@ -134,23 +172,11 @@ const App = () => {
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
+  const [adminPosition, setAdminPosition] = useState([0, 2, 5]); // Start admin camera higher up
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const yOffset = -0.96;
   const wallBoundary = 50;
-
-  const textures = [
-    'https://i.1.creatium.io/disk2/63/ee/29/26332803a332611fe5b65a7b3895f7c136/1.png',
-    'https://i.1.creatium.io/disk2/85/73/16/c34bed7446b377aa0d3a251bfa7a1b0cac/image_11.png',
-    'https://i.1.creatium.io/disk2/4f/83/02/17bdf21eeac7467da789b94debcb2db49c/3.png',
-    'https://i.1.creatium.io/disk2/1d/76/a6/0471ada10539af1ba1209e861a4ae9d273/4.png',
-    'https://i.1.creatium.io/disk2/b0/11/48/ed865438722741720ee7dced4b1cab52c7/5.png',
-  ];
-
-  const [currentTextureIndex, setCurrentTextureIndex] = useState(0);
-
-  const switchTexture = () => {
-    setCurrentTextureIndex((prevIndex) => (prevIndex + 1) % textures.length);
-  };
 
   const handleConnect = () => {
     setIsLoading(true);
@@ -265,7 +291,8 @@ const App = () => {
             <Suspense fallback={null}>
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
-              <FollowCamera targetPosition={playerPosition} />
+              <FollowCamera targetPosition={playerPosition} adminMode={adminMode} />
+              <AdminCamera adminMode={adminMode} setAdminPosition={setAdminPosition} />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
@@ -275,8 +302,9 @@ const App = () => {
                   yOffset={yOffset}
                 />
               ))}
-              <TexturedFloor currentTexture={textures[currentTextureIndex]} />
+              <TexturedFloor />
               <Walls />
+              {adminMode && <RedSphere position={adminPosition} />}
             </Suspense>
           </Canvas>
 
@@ -289,9 +317,14 @@ const App = () => {
           </div>
 
           <div style={{ position: 'absolute', bottom: 50, right: 50 }}>
-            <button onClick={switchTexture} style={{ padding: '10px 20px', fontSize: '16px' }}>
-              Переключатель локации
+            <button onClick={() => setAdminMode(!adminMode)} style={{ padding: '10px 20px', fontSize: '16px' }}>
+              {adminMode ? 'Выкл Адм.Мод' : 'Вкл Адм.Мод'}
             </button>
+            {adminMode && (
+              <div style={{ color: 'white', marginTop: '10px' }}>
+                <p>Координаты: X: {adminPosition[0].toFixed(2)}, Y: {adminPosition[1].toFixed(2)}, Z: {adminPosition[2].toFixed(2)}</p>
+              </div>
+            )}
           </div>
         </>
       )}
