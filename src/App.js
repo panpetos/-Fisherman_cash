@@ -69,13 +69,59 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
 
 const AdminCamera = ({ adminMode, adminPosition, setAdminPosition, adminRotation, setAdminRotation }) => {
   const { camera } = useThree();
+  const [isMousePressed, setIsMousePressed] = useState(false);
 
   useFrame(() => {
     if (adminMode) {
       camera.position.copy(new Vector3(...adminPosition));
-      camera.rotation.set(adminRotation[0], adminRotation[1], 0);
+      camera.rotation.set(0, adminRotation[1], 0); // Keep horizon level
     }
   });
+
+  useEffect(() => {
+    const handleMouseDown = () => {
+      if (adminMode) setIsMousePressed(true);
+    };
+
+    const handleMouseUp = () => {
+      setIsMousePressed(false);
+    };
+
+    const handleMouseMove = (event) => {
+      if (isMousePressed) {
+        const rotationSpeed = 0.002;
+        setAdminRotation([
+          adminRotation[0],
+          adminRotation[1] - event.movementX * rotationSpeed
+        ]);
+      }
+    };
+
+    const handleKeyPress = (event) => {
+      if (adminMode) {
+        const speed = 0.5;
+        const newPosition = new Vector3(...adminPosition);
+        if (event.key === 'ArrowUp') {
+          newPosition.y += speed;
+        } else if (event.key === 'ArrowDown') {
+          newPosition.y -= speed;
+        }
+        setAdminPosition(newPosition.toArray());
+      }
+    };
+
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('keydown', handleKeyPress);
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isMousePressed, adminMode, adminPosition, adminRotation]);
 
   return null;
 };
@@ -161,7 +207,7 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
   const [adminPosition, setAdminPosition] = useState([0, 5, 5]);
-  const [adminRotation, setAdminRotation] = useState([0, 0]); // Store admin camera rotation
+  const [adminRotation, setAdminRotation] = useState([0, 0]);
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const yOffset = -0.96;
   const wallBoundary = 50;
@@ -260,19 +306,7 @@ const App = () => {
     });
   };
 
-  const handleMouseMove = (event) => {
-    if (adminMode) {
-      const rotationSpeed = 0.002;
-      setAdminRotation([
-        adminRotation[0] - event.movementY * rotationSpeed,
-        adminRotation[1] - event.movementX * rotationSpeed,
-      ]);
-    }
-  };
-
   useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-
     const interval = setInterval(() => {
       if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
         handleMove(movementDirectionRef.current);
@@ -280,7 +314,6 @@ const App = () => {
     }, 50);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
       clearInterval(interval);
     };
   }, [playerPosition, adminMode, adminPosition, adminRotation]);
