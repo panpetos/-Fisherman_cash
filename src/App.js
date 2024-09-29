@@ -211,7 +211,7 @@ const Walls = () => {
 };
 
 const App = () => {
-  const [playerPosition, setPlayerPosition] = useState([4.83, 0, -40.63]); // Задаем начальные координаты игрока
+  const [playerPosition, setPlayerPosition] = useState([0, 0, 0]);
   const [playerRotation, setPlayerRotation] = useState(0);
   const [players, setPlayers] = useState({});
   const [currentAnimation, setCurrentAnimation] = useState('Idle');
@@ -246,7 +246,7 @@ const App = () => {
 
     socket.on('initPlayer', (player, allPlayers) => {
       setPlayers(allPlayers);
-      setPlayerPosition([4.83, 0, -40.63]); // Установка новых начальных координат для игрока
+      setPlayerPosition(player.position);
       setPlayerRotation(player.rotation);
       setIsLoading(false);
     });
