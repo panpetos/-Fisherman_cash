@@ -67,26 +67,13 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
   return <group ref={groupRef} />;
 };
 
-const AdminCamera = ({ adminMode, setAdminPosition }) => {
+const AdminCamera = ({ adminMode, adminPosition, setAdminPosition, adminRotation, setAdminRotation }) => {
   const { camera } = useThree();
-  const speed = 1;
 
   useFrame(() => {
     if (adminMode) {
-      // Basic WASD controls
-      const moveForward = (event) => {
-        if (event.key === 'w') camera.position.z -= speed;
-        if (event.key === 's') camera.position.z += speed;
-        if (event.key === 'a') camera.position.x -= speed;
-        if (event.key === 'd') camera.position.x += speed;
-        if (event.key === 'ArrowUp') camera.position.y += speed;
-        if (event.key === 'ArrowDown') camera.position.y -= speed;
-        setAdminPosition([camera.position.x, camera.position.y, camera.position.z]);
-      };
-
-      window.addEventListener('keydown', moveForward);
-
-      return () => window.removeEventListener('keydown', moveForward);
+      camera.position.copy(new Vector3(...adminPosition));
+      camera.rotation.set(adminRotation[0], adminRotation[1], 0);
     }
   });
 
@@ -173,7 +160,8 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [adminMode, setAdminMode] = useState(false);
-  const [adminPosition, setAdminPosition] = useState([0, 2, 5]); // Start admin camera higher up
+  const [adminPosition, setAdminPosition] = useState([0, 5, 5]);
+  const [adminRotation, setAdminRotation] = useState([0, 0]); // Store admin camera rotation
   const movementDirectionRef = useRef({ x: 0, y: 0 });
   const yOffset = -0.96;
   const wallBoundary = 50;
@@ -209,44 +197,52 @@ const App = () => {
   };
 
   const handleMove = ({ x, y }) => {
-    if (x === 0 && y === 0) {
-      handleStop();
-      return;
+    if (adminMode) {
+      const speed = 0.5;
+      const forward = new Vector3(0, 0, -y).applyAxisAngle(new Vector3(0, 1, 0), adminRotation[1]).multiplyScalar(speed);
+      const right = new Vector3(x, 0, 0).applyAxisAngle(new Vector3(0, 1, 0), adminRotation[1]).multiplyScalar(speed);
+      const newPosition = new Vector3(...adminPosition).add(forward).add(right);
+      setAdminPosition(newPosition.toArray());
+    } else {
+      if (x === 0 && y === 0) {
+        handleStop();
+        return;
+      }
+
+      movementDirectionRef.current = { x, y };
+
+      const movementSpeed = 0.2;
+      const forwardMovement = new Vector3(0, 0, y * movementSpeed);
+      const rightMovement = new Vector3(-x * movementSpeed, 0, 0);
+      const newPosition = new Vector3(
+        playerPosition[0] + forwardMovement.x + rightMovement.x,
+        playerPosition[1],
+        playerPosition[2] + forwardMovement.z + rightMovement.z
+      );
+
+      if (
+        newPosition.x < -wallBoundary || newPosition.x > wallBoundary ||
+        newPosition.z < -wallBoundary || newPosition.z > wallBoundary
+      ) {
+        return;
+      }
+
+      setPlayerPosition(newPosition.toArray());
+
+      const directionAngle = Math.atan2(-x, y);
+      setPlayerRotation(directionAngle);
+
+      if (currentAnimation !== 'Running') {
+        setCurrentAnimation('Running');
+      }
+
+      socket.emit('playerMove', {
+        id: socket.id,
+        position: newPosition.toArray(),
+        rotation: directionAngle,
+        animation: 'Running',
+      });
     }
-
-    movementDirectionRef.current = { x, y };
-
-    const movementSpeed = 0.2;
-    const forwardMovement = new Vector3(0, 0, y * movementSpeed);
-    const rightMovement = new Vector3(-x * movementSpeed, 0, 0);
-    const newPosition = new Vector3(
-      playerPosition[0] + forwardMovement.x + rightMovement.x,
-      playerPosition[1],
-      playerPosition[2] + forwardMovement.z + rightMovement.z
-    );
-
-    if (
-      newPosition.x < -wallBoundary || newPosition.x > wallBoundary ||
-      newPosition.z < -wallBoundary || newPosition.z > wallBoundary
-    ) {
-      return;
-    }
-
-    setPlayerPosition(newPosition.toArray());
-
-    const directionAngle = Math.atan2(-x, y);
-    setPlayerRotation(directionAngle);
-
-    if (currentAnimation !== 'Running') {
-      setCurrentAnimation('Running');
-    }
-
-    socket.emit('playerMove', {
-      id: socket.id,
-      position: newPosition.toArray(),
-      rotation: directionAngle,
-      animation: 'Running',
-    });
   };
 
   const handleStop = () => {
@@ -264,15 +260,30 @@ const App = () => {
     });
   };
 
+  const handleMouseMove = (event) => {
+    if (adminMode) {
+      const rotationSpeed = 0.002;
+      setAdminRotation([
+        adminRotation[0] - event.movementY * rotationSpeed,
+        adminRotation[1] - event.movementX * rotationSpeed,
+      ]);
+    }
+  };
+
   useEffect(() => {
+    window.addEventListener('mousemove', handleMouseMove);
+
     const interval = setInterval(() => {
       if (movementDirectionRef.current.x !== 0 || movementDirectionRef.current.y !== 0) {
         handleMove(movementDirectionRef.current);
       }
     }, 50);
 
-    return () => clearInterval(interval);
-  }, [playerPosition]);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearInterval(interval);
+    };
+  }, [playerPosition, adminMode, adminPosition, adminRotation]);
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
@@ -292,7 +303,7 @@ const App = () => {
               <ambientLight />
               <pointLight position={[10, 10, 10]} />
               <FollowCamera targetPosition={playerPosition} adminMode={adminMode} />
-              <AdminCamera adminMode={adminMode} setAdminPosition={setAdminPosition} />
+              <AdminCamera adminMode={adminMode} adminPosition={adminPosition} setAdminPosition={setAdminPosition} adminRotation={adminRotation} setAdminRotation={setAdminRotation} />
               {Object.keys(players).map((id) => (
                 <Fisherman
                   key={id}
