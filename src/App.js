@@ -50,7 +50,7 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
   };
 
   useEffect(() => {
-    playAnimation(animation);
+    playAnimation(animation, animation !== 'Idle');
   }, [animation]);
 
   useFrame((state, delta) => {
@@ -248,7 +248,6 @@ const App = () => {
       setPlayers(allPlayers);
       setPlayerPosition([4.83, 0, -40.63]); // Установка новых начальных координат для игрока
       setPlayerRotation(player.rotation);
-      setCurrentAnimation('Idle'); // Устанавливаем начальную анимацию в "Idle"
       setIsLoading(false);
     });
 
@@ -330,18 +329,6 @@ const App = () => {
       clearInterval(interval);
     };
   }, [playerPosition, adminMode, adminPosition, adminRotation]);
-
-  useEffect(() => {
-    // Обновляем игрока сразу после инициализации
-    if (socket && playerPosition) {
-      socket.emit('playerMove', {
-        id: socket.id,
-        position: playerPosition,
-        rotation: playerRotation,
-        animation: 'Idle',
-      });
-    }
-  }, [playerPosition, playerRotation]);
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
