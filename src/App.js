@@ -349,6 +349,7 @@ const App = () => {
               <TexturedFloor />
               <Walls />
               {adminMode && <RedSphere position={adminPosition} />}
+              {adminMode && <RedSphere position={adminPosition} />}
             </Suspense>
           </Canvas>
 
