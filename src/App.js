@@ -248,6 +248,7 @@ const App = () => {
       setPlayers(allPlayers);
       setPlayerPosition([4.83, 0, -40.63]); // Установка новых начальных координат для игрока
       setPlayerRotation(player.rotation);
+      setCurrentAnimation('Idle'); // Устанавливаем начальную анимацию в "Idle"
       setIsLoading(false);
     });
 
