@@ -330,6 +330,18 @@ const App = () => {
     };
   }, [playerPosition, adminMode, adminPosition, adminRotation]);
 
+  useEffect(() => {
+    // Обновляем игрока сразу после инициализации
+    if (socket && playerPosition) {
+      socket.emit('playerMove', {
+        id: socket.id,
+        position: playerPosition,
+        rotation: playerRotation,
+        animation: 'Idle',
+      });
+    }
+  }, [playerPosition, playerRotation]);
+
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
       {!isConnected ? (
