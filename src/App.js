@@ -50,7 +50,7 @@ const Fisherman = ({ position, rotation, animation, yOffset }) => {
   };
 
   useEffect(() => {
-    playAnimation(animation, animation !== 'Idle');
+    playAnimation(animation);
   }, [animation]);
 
   useFrame((state, delta) => {
